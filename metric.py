@@ -51,7 +51,6 @@ def compute_metrics(pred):
     preds = pred.predictions.argmax(-1)
     probs = pred.predictions
 
-    # calculate accuracy using sklearn's function
     f1 = klue_re_micro_f1(preds, labels)
     auprc = klue_re_auprc(probs, labels)
     acc = accuracy_score(labels, preds)

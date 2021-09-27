@@ -77,5 +77,5 @@ class DataHelper:
 
     def convert_by(self, labels, dictionary='dict_label_to_num.pkl'):
         with open(dictionary, 'rb') as f:
-            convert_by = pickle.load(f)
-        return [convert_by[label] for label in labels]
+            dictionary = pickle.load(f)
+        return [dictionary[label] for label in labels]
