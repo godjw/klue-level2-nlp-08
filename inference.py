@@ -4,16 +4,15 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
 import pandas as pd
-import numpy as np
 from tqdm import tqdm
 
 from utils import *
 
 
-def infer(model, test_dataset, batch_size, device):
-    dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+def infer(model, test_dataset, batch_size, collate_fn, device):
+    dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
     model.eval()
     output_pred = []
     output_prob = []
@@ -21,8 +20,7 @@ def infer(model, test_dataset, batch_size, device):
         with torch.no_grad():
             outputs = model(
                 input_ids=data['input_ids'].to(device),
-                attention_mask=data['attention_mask'].to(device),
-                token_type_ids=data['token_type_ids'].to(device)
+                attention_mask=data['attention_mask'].to(device)
             )
         logits = outputs[0]
         result = torch.argmax(logits, axis=-1)
@@ -38,11 +36,11 @@ def inference(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     helper = DataHelper(data_dir=args.data_dir)
     preprocessed, test_labels = helper.preprocess(mode='inference')
     test_data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
-
     test_dataset = RelationExtractionDataset(test_data, test_labels)
 
     model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
@@ -53,6 +51,7 @@ def inference(args):
         model=model,
         test_dataset=test_dataset,
         batch_size=args.batch_size,
+        collate_fn=data_collator,
         device=device
     )
     pred_labels = helper.convert_labels_by_dict(
