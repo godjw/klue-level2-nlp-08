@@ -5,7 +5,7 @@
 git config commit.template .gitmessage.txt
 
 # NOTE: stratified split dataset
-python split_dataset.py
+# python split_dataset.py
 
 # TODO: add preprocessing script
 
