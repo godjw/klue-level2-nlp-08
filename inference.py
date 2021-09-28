@@ -55,7 +55,7 @@ def inference(args):
         batch_size=args.batch_size,
         device=device
     )
-    pred_labels = helper.convert_by(
+    pred_labels = helper.convert_labels_by_dict(
         labels=pred_labels,
         dictionary=args.dictionary
     )
