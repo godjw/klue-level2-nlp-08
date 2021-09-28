@@ -1,5 +1,5 @@
+import ast
 import pickle
-import re
 
 import torch
 from torch.utils.data import Dataset
@@ -40,8 +40,7 @@ class DataHelper:
         if data is None:
             data = self._raw
 
-        pattern = re.compile(pattern='[a-z가-힣0-9]+')
-        extract = lambda data: pattern.findall(string=data)[1]
+        extract = lambda data: ast.literal_eval(data)['word']
 
         subjects = list(map(extract, data['subject_entity']))
         objects = list(map(extract, data['object_entity']))
