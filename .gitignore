@@ -1,0 +1,9 @@
+__pycache__/
+.ipynb_checkpoints/
+best_model/
+logs/
+prediction/
+results/
+wandb/
+*.pkl
+
