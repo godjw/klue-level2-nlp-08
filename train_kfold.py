@@ -152,7 +152,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=str,
-                        default="../dataset/train/train.csv")
+                        default="data/train.csv")
 
     parser.add_argument("--model_name", type=str, default="klue/bert-base")
     parser.add_argument("--output_dir", type=str, default="./results")

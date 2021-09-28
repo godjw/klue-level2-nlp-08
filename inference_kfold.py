@@ -87,9 +87,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_dir', type=str,
-                        default='../dataset/test/test_data.csv')
+                        default='data/test_data.csv')
     parser.add_argument('--dictionary', type=str,
-                        default='./dict_num_to_label.pkl')
+                        default='data/dict_num_to_label.pkl')
 
     parser.add_argument('--model_dir', type=str, default='./best_model')
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
