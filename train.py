@@ -133,11 +133,10 @@ def train():
   trainer.train()
   model.save_pretrained('./best_model')
 def main():
-  wandb.init(project="klue",
+  wandb.init(project="jinwon",
             entity='chungye-mountain-sherpa',
-            name="klue/bert-base",
-            tags=["baseline", "high-lr"],
-            group="bert")
+            tags=["baseline", "high-lr"]
+            )
   train()
 
 if __name__ == '__main__':
