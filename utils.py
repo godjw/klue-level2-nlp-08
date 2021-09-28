@@ -17,10 +17,7 @@ class RelationExtractionDataset(Dataset):
         self.labels = labels
 
     def __getitem__(self, idx):
-        item = {
-            key: val[idx].clone().detach()
-            for key, val in self.pair_dataset.items()
-        }
+        item = {key: val[idx] for key, val in self.pair_dataset.items()}
         item['labels'] = torch.tensor(self.labels[idx])
         return item
 
@@ -53,7 +50,7 @@ class DataHelper:
             'label': data['label']
         })
         if mode == 'train':
-            labels = self.convert_by(labels=data['label'])
+            labels = self.convert_labels_by_dict(labels=data['label'])
         elif mode == 'inference':
             labels = data['label']
             
@@ -66,15 +63,11 @@ class DataHelper:
         tokenized = tokenizer(
             concated_entities,
             data['sentence'].tolist(),
-            return_tensors="pt",
-            padding=True,
             truncation=True,
-            max_length=256,
-            add_special_tokens=True,
         )
         return tokenized
 
-    def convert_by(self, labels, dictionary='dict_label_to_num.pkl'):
+    def convert_labels_by_dict(self, labels, dictionary='dict_label_to_num.pkl'):
         with open(dictionary, 'rb') as f:
             dictionary = pickle.load(f)
         return [dictionary[label] for label in labels]

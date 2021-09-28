@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
+from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 import wandb
 
 from utils import *
@@ -10,16 +10,10 @@ from metric import compute_metrics
 
 
 def train(args):
-    wandb.login()
-    wandb.init(
-        project='klue',
-        name=args.model_name,
-        group=args.model_name.split('/')[-1]
-    )
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     helper = DataHelper(data_dir=args.data_dir)
     preprocessed, train_labels = helper.preprocess()
@@ -61,7 +55,8 @@ def train(args):
         args=training_args,                             # training arguments, defined above
         train_dataset=train_dataset,                    # training dataset
         eval_dataset=train_dataset,                     # evaluation dataset
-        compute_metrics=compute_metrics                 # define metrics function
+        compute_metrics=compute_metrics,                # define metrics function
+        data_collator=data_collator
     )
 
     trainer.train()
@@ -82,5 +77,12 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=16)
     
     args = parser.parse_args()
+
+    wandb.login()
+    wandb.init(
+        project='klue',
+        name=args.model_name,
+        group=args.model_name.split('/')[-1]
+    )
 
     train(args=args)
