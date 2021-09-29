@@ -14,37 +14,17 @@ class RelationExtractionDataset(Dataset):
     A dataset class for loading Relation Extraction data
     """
 
-    def __init__(self, pair_dataset, labels, phase, split_ratio=0.2):
+    def __init__(self, data, labels):
+        self.data = data
         self.labels = labels
-        self.phase = phase
-        self.split_ratio = split_ratio
-        self.data_inven = self.get_data(pair_dataset)
-
-    def get_data(self, pair_dataset):
-        train_idx, valid_idx = train_test_split(np.arange(len(
-            self.labels)), test_size=self.split_ratio, random_state=42, shuffle=True, stratify=self.labels)
-        pd_pair_dataset = pd.DataFrame()
-
-        for key, val in pair_dataset.items():
-            pd_pair_dataset[key] = val
-
-        pd_pair_dataset['labels'] = torch.tensor(self.labels)
-
-        if self.phase == 'train':
-            index = train_idx
-        elif self.phase == 'validation':
-            index = valid_idx
-
-        temp_df = pd.DataFrame(pd_pair_dataset, index=index)
-        temp_df.reset_index(inplace=True, drop=True)
-
-        return temp_df
 
     def __getitem__(self, idx):
-        return dict(self.data_inven.iloc[idx])
+        item = {key: value[idx] for key, value in self.data.items()}
+        item['labels'] = torch.tensor(self.labels[idx])
+        return item
 
     def __len__(self):
-        return len(self.data_inven)
+        return len(self.labels)
 
 
 class DataHelper:
@@ -55,11 +35,11 @@ class DataHelper:
     def __init__(self, data_dir):
         self._raw = pd.read_csv(data_dir)
 
-    def preprocess(self, data=None, mode='train'):
+    def preprocess(self, data=None, mode='train', test_size=0.2):
         if data is None:
             data = self._raw
 
-        def extract(data): return ast.literal_eval(data)['word']
+        extract = lambda data: ast.literal_eval(data)['word']
 
         subjects = list(map(extract, data['subject_entity']))
         objects = list(map(extract, data['object_entity']))
@@ -71,12 +51,28 @@ class DataHelper:
             'object_entity': objects,
             'label': data['label']
         })
+
         if mode == 'train':
             labels = self.convert_labels_by_dict(labels=data['label'])
+            train_idxs, val_idxs = train_test_split(
+                np.arange(len(labels)),
+                test_size=test_size,
+                shuffle=True
+            )
+            preprocessed = {
+                'train_data': preprocessed.iloc[train_idxs],
+                'train_labels': labels[train_idxs],
+                'val_data': preprocessed.iloc[val_idxs],
+                'val_labels':labels[val_idxs]
+            }
         elif mode == 'inference':
-            labels = data['label']
+            labels = np.array(data['label'])
+            preprocessed = {
+                'test_data': preprocessed,
+                'test_labels': labels
+            }
 
-        return preprocessed, labels
+        return preprocessed
 
     def tokenize(self, data, tokenizer):
         concated_entities = [
@@ -92,4 +88,4 @@ class DataHelper:
     def convert_labels_by_dict(self, labels, dictionary='data/dict_label_to_num.pkl'):
         with open(dictionary, 'rb') as f:
             dictionary = pickle.load(f)
-        return [dictionary[label] for label in labels]
+        return np.array([dictionary[label] for label in labels])

@@ -12,8 +12,7 @@ from utils import *
 
 
 def infer(model, test_dataset, batch_size, collate_fn, device):
-    dataloader = DataLoader(
-        test_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
+    dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
     model.eval()
     output_pred = []
     output_prob = []
@@ -40,9 +39,9 @@ def inference(args):
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     helper = DataHelper(data_dir=args.data_dir)
-    preprocessed, test_labels = helper.preprocess(mode='inference')
-    test_data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
-    test_dataset = RelationExtractionDataset(test_data, test_labels)
+    preprocessed = helper.preprocess(mode='inference')
+    test_data = helper.tokenize(data=preprocessed['test_data'], tokenizer=tokenizer)
+    test_dataset = RelationExtractionDataset(test_data, preprocessed['test_labels'])
 
     model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
     model.parameters
@@ -61,7 +60,7 @@ def inference(args):
     )
 
     output = pd.DataFrame({
-        'id': preprocessed['id'],
+        'id': preprocessed['test_data']['id'],
         'pred_label': pred_labels,
         'probs': pred_probs
     })
@@ -73,16 +72,13 @@ def inference(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_dir', type=str,
-                        default='data/test_data.csv')
-    parser.add_argument('--dictionary', type=str,
-                        default='data/dict_num_to_label.pkl')
+    parser.add_argument('--data_dir', type=str, default='data/test_data.csv')
+    parser.add_argument('--dictionary', type=str, default='data/dict_num_to_label.pkl')
 
     parser.add_argument('--model_dir', type=str, default='./best_model')
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
-    parser.add_argument('--output_path', type=str,
-                        default='./prediction/submission.csv')
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--output_path', type=str, default='./prediction/submission.csv')
+    parser.add_argument('--batch_size', type=int, default=64)
 
     args = parser.parse_args()
     print(args)
