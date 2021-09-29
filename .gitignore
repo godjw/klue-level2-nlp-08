@@ -12,3 +12,8 @@ wandb/
 
 # shell scripts
 *.sh
+
+# saved model
+best_model/
+results/
+prediction/
