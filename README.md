@@ -6,7 +6,7 @@
 ### w/ stratified k fold
 `python train.py --mode skf`
 
-## inference
+## Inference
 ### default
 `python inference.py`
 ### w/ stratified k fold
