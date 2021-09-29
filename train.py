@@ -16,7 +16,7 @@ def train(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    helper = DataHelper(data_dir=args.data_dir)
+    helper = DataHelper(data_dir=args.data_dir, model_name=args.model_name)
     preprocessed, train_labels = helper.preprocess()
     data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
 
@@ -104,7 +104,7 @@ if __name__ == '__main__':
 
     wandb.login()
     wandb.init(
-        project='klue',
+        project='jinwon',
         entity='chungye-mountain-sherpa',
         name=args.model_name,
         group=args.model_name.split('/')[-1]

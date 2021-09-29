@@ -21,24 +21,35 @@ class RelationExtractionDataset(Dataset):
         self.data_inven = self.get_data(pair_dataset)
 
     def get_data(self, pair_dataset):
-        train_idx, valid_idx = train_test_split(np.arange(len(
-            self.labels)), test_size=self.split_ratio, random_state=42, shuffle=True, stratify=self.labels)
-        pd_pair_dataset = pd.DataFrame()
+        if self.phase != 'test':
+            train_idx, valid_idx = train_test_split(np.arange(len(
+                self.labels)), test_size=self.split_ratio, random_state=42, shuffle=True, stratify=self.labels)
+            pd_pair_dataset = pd.DataFrame()
 
-        for key, val in pair_dataset.items():
-            pd_pair_dataset[key] = val
+            for key, val in pair_dataset.items():
+                pd_pair_dataset[key] = val
 
-        pd_pair_dataset['labels'] = torch.tensor(self.labels)
+            pd_pair_dataset['labels'] = torch.tensor(self.labels)
 
-        if self.phase == 'train':
-            index = train_idx
-        elif self.phase == 'validation':
-            index = valid_idx
+            if self.phase == 'train':
+                index = train_idx
+            elif self.phase == 'validation':
+                index = valid_idx
 
-        temp_df = pd.DataFrame(pd_pair_dataset, index=index)
-        temp_df.reset_index(inplace=True, drop=True)
+            temp_df = pd.DataFrame(pd_pair_dataset, index=index)
+            temp_df.reset_index(inplace=True, drop=True)
 
-        return temp_df
+            return temp_df
+            
+        else:
+            pd_pair_dataset = pd.DataFrame()
+            
+            for key, val in pair_dataset.items():
+                pd_pair_dataset[key] = val
+
+            pd_pair_dataset['labels'] = torch.tensor(self.labels)
+
+            return pd_pair_dataset
 
     def __getitem__(self, idx):
         return dict(self.data_inven.iloc[idx])
@@ -52,8 +63,9 @@ class DataHelper:
     A helper class for data loading and processing
     """
 
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, model_name):
         self._raw = pd.read_csv(data_dir)
+        self._model = model_name
 
     def preprocess(self, data=None, mode='train'):
         if data is None:
@@ -79,6 +91,11 @@ class DataHelper:
         return preprocessed, labels
 
     def tokenize(self, data, tokenizer):
+        if 'roberta' in self._model:
+            token_type_ids = False
+        else:
+            token_type_ids = True
+
         concated_entities = [
             sub + '[SEP]' + obj for sub, obj in zip(data['subject_entity'], data['object_entity'])
         ]
@@ -86,6 +103,7 @@ class DataHelper:
             concated_entities,
             data['sentence'].tolist(),
             truncation=True,
+            return_token_type_ids=token_type_ids,
         )
         return tokenized
 
