@@ -8,7 +8,6 @@ import wandb
 from utils import *
 from metric import compute_metrics
 
-
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -17,9 +16,10 @@ def train(args):
 
     helper = DataHelper(data_dir=args.data_dir)
     preprocessed, train_labels = helper.preprocess()
-    train_data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
+    data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
 
-    train_dataset = RelationExtractionDataset(train_data, train_labels)
+    train_dataset = RelationExtractionDataset(data, train_labels, phase='train')
+    validation_dataset = RelationExtractionDataset(data, train_labels, phase='validation')
 
     model_config = AutoConfig.from_pretrained(args.model_name)
     model_config.num_labels = 30
@@ -54,7 +54,7 @@ def train(args):
         model=model,
         args=training_args,                             # training arguments, defined above
         train_dataset=train_dataset,                    # training dataset
-        eval_dataset=train_dataset,                     # evaluation dataset
+        eval_dataset=validation_dataset,                # evaluation dataset
         compute_metrics=compute_metrics,                # define metrics function
         data_collator=data_collator
     )
@@ -78,11 +78,12 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
+    '''
     wandb.login()
     wandb.init(
         project='klue',
         name=args.model_name,
         group=args.model_name.split('/')[-1]
-    )
+    )''' 
 
     train(args=args)

@@ -4,7 +4,9 @@ import pickle
 import torch
 from torch.utils.data import Dataset
 
+from sklearn.model_selection import train_test_split
 import pandas as pd
+import numpy as np
 
 
 class RelationExtractionDataset(Dataset):
@@ -12,17 +14,36 @@ class RelationExtractionDataset(Dataset):
     A dataset class for loading Relation Extraction data
     """
 
-    def __init__(self, pair_dataset, labels):
-        self.pair_dataset = pair_dataset
+    def __init__(self, pair_dataset, labels, phase):
         self.labels = labels
+        self.phase = phase
+        self.data_inven = self.get_data(pair_dataset)
+
+    def get_data(self, pair_dataset):
+        train_idx, valid_idx = train_test_split(np.arange(len(self.labels)), test_size=0.2, random_state=42, shuffle=True, stratify=self.labels)
+        pd_pair_dataset = pd.DataFrame()
+        
+        for key, val in pair_dataset.items():
+            pd_pair_dataset[key] = val
+        
+        pd_pair_dataset['labels'] = torch.tensor(self.labels)
+
+        if self.phase == 'train':
+            index = train_idx
+        elif self.phase == 'validation':
+            index = valid_idx
+
+        temp_df = pd.DataFrame(pd_pair_dataset, index=index)
+        temp_df.reset_index(inplace=True, drop=True)
+
+        return temp_df
 
     def __getitem__(self, idx):
-        item = {key: val[idx] for key, val in self.pair_dataset.items()}
-        item['labels'] = torch.tensor(self.labels[idx])
-        return item
+        return dict(self.data_inven.iloc[idx])
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.data_inven)
+
 
 
 class DataHelper:
@@ -67,7 +88,7 @@ class DataHelper:
         )
         return tokenized
 
-    def convert_labels_by_dict(self, labels, dictionary='dict_label_to_num.pkl'):
+    def convert_labels_by_dict(self, labels, dictionary='../code/dict_label_to_num.pkl'):
         with open(dictionary, 'rb') as f:
             dictionary = pickle.load(f)
         return [dictionary[label] for label in labels]
