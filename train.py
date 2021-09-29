@@ -78,12 +78,12 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    '''
+    
     wandb.login()
     wandb.init(
         project='klue',
         name=args.model_name,
         group=args.model_name.split('/')[-1]
-    )''' 
+    )
 
     train(args=args)
