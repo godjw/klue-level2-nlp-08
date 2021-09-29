@@ -1,0 +1,14 @@
+# Python
+__pycache__
+
+# Checkpoints
+results/
+
+# wandb
+wandb/
+
+# jupyter temp files
+.ipynb_checkpoints
+
+# shell scripts
+*.sh
