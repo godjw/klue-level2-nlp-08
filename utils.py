@@ -14,37 +14,14 @@ class RelationExtractionDataset(Dataset):
     A dataset class for loading Relation Extraction data
     """
 
-    def __init__(self, pair_dataset, labels, phase, split_ratio=0.2):
-        self.labels = labels
-        self.phase = phase
-        self.split_ratio = split_ratio
-        self.data_inven = self.get_data(pair_dataset)
-
-    def get_data(self, pair_dataset):
-        train_idx, valid_idx = train_test_split(np.arange(len(
-            self.labels)), test_size=self.split_ratio, random_state=42, shuffle=True, stratify=self.labels)
-        pd_pair_dataset = pd.DataFrame()
-
-        for key, val in pair_dataset.items():
-            pd_pair_dataset[key] = val
-
-        pd_pair_dataset['labels'] = torch.tensor(self.labels)
-
-        if self.phase == 'train':
-            index = train_idx
-        elif self.phase == 'validation':
-            index = valid_idx
-
-        temp_df = pd.DataFrame(pd_pair_dataset, index=index)
-        temp_df.reset_index(inplace=True, drop=True)
-
-        return temp_df
+    def __init__(self, pair_dataset):
+        self.pair_dataset = pair_dataset
 
     def __getitem__(self, idx):
-        return dict(self.data_inven.iloc[idx])
+        return dict(self.pair_dataset.iloc[idx])
 
     def __len__(self):
-        return len(self.data_inven)
+        return len(self.pair_dataset)
 
 
 class DataHelper:
@@ -93,3 +70,38 @@ class DataHelper:
         with open(dictionary, 'rb') as f:
             dictionary = pickle.load(f)
         return [dictionary[label] for label in labels]
+
+    def split(self, pair_data, labels, phase, split_ratio=0.2, small=False):
+        # stratified split if inference!
+        if phase == 'inference':
+            pd_pair_data = pd.DataFrame()
+            for key, val in pair_data.items():
+                pd_pair_data[key] = val
+            return pd_pair_data
+
+        # stratified split during training/validating!
+        train_idx, valid_idx = train_test_split(np.arange(len(
+            labels)), test_size=split_ratio, random_state=42, shuffle=True, stratify=labels)
+
+        if small == True:
+            train_idx = train_idx[:int(len(train_idx)/20)]
+            valid_idx = valid_idx[:int(len(valid_idx)/20)]
+
+        pd_pair_data = pd.DataFrame()
+        for key, val in pair_data.items():
+            pd_pair_data[key] = val
+
+        pd_pair_data['labels'] = torch.tensor(labels)
+
+        if phase == 'train':
+            index = train_idx
+        elif phase == 'validation':
+            index = valid_idx
+        
+        temp_df = pd.DataFrame(pd_pair_data, index=index)
+        temp_df.reset_index(inplace=True, drop=True)
+
+        return temp_df
+            
+            
+
