@@ -1,9 +1,21 @@
-__pycache__/
-.ipynb_checkpoints/
-best_model/
 logs/
-prediction/
-results/
-wandb/
-*.pkl
 
+# Python
+__pycache__
+
+# Checkpoints
+results/
+
+# wandb
+wandb/
+
+# jupyter temp files
+.ipynb_checkpoints
+
+# shell scripts
+*.sh
+
+# saved model
+best_model/
+results/
+prediction/
