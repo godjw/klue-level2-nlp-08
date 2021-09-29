@@ -4,7 +4,7 @@ import pickle
 import torch
 from torch.utils.data import Dataset
 
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 import pandas as pd
 import numpy as np
 
@@ -14,13 +14,14 @@ class RelationExtractionDataset(Dataset):
     A dataset class for loading Relation Extraction data
     """
 
-    def __init__(self, data, labels):
+    def __init__(self, data, labels=None):
         self.data = data
         self.labels = labels
 
     def __getitem__(self, idx):
         item = {key: value[idx] for key, value in self.data.items()}
-        item['labels'] = torch.tensor(self.labels[idx])
+        if self.labels is not None:
+            item['labels'] = torch.tensor(self.labels[idx])
         return item
 
     def __len__(self):
@@ -32,47 +33,42 @@ class DataHelper:
     A helper class for data loading and processing
     """
 
-    def __init__(self, data_dir):
-        self._raw = pd.read_csv(data_dir)
-
-    def preprocess(self, data=None, mode='train', test_size=0.2):
-        if data is None:
-            data = self._raw
-
-        extract = lambda data: ast.literal_eval(data)['word']
+    def __init__(self, data_dir, mode='train'):
+        self._data = pd.read_csv(data_dir)
+        self._mode = mode
+        self._preprocess()
+    
+    def _preprocess(self):
+        data = self._data
+        extract = lambda d: ast.literal_eval(d)['word']
 
         subjects = list(map(extract, data['subject_entity']))
         objects = list(map(extract, data['object_entity']))
 
-        preprocessed = pd.DataFrame({
+        self._processed = pd.DataFrame({
             'id': data['id'],
             'sentence': data['sentence'],
             'subject_entity': subjects,
             'object_entity': objects,
-            'label': data['label']
         })
-
-        if mode == 'train':
-            labels = self.convert_labels_by_dict(labels=data['label'])
-            train_idxs, val_idxs = train_test_split(
-                np.arange(len(labels)),
-                test_size=test_size,
+        if self._mode == 'train':
+            self._labels = self.convert_labels_by_dict(labels=data['label'])
+    
+    def split(self, ratio=0.2, mode='plain'):
+        if mode == 'plain':
+            idxs_list = [train_test_split(
+                np.arange(len(self._data)),
+                test_size=ratio,
                 shuffle=True
-            )
-            preprocessed = {
-                'train_data': preprocessed.iloc[train_idxs],
-                'train_labels': labels[train_idxs],
-                'val_data': preprocessed.iloc[val_idxs],
-                'val_labels':labels[val_idxs]
-            }
-        elif mode == 'inference':
-            labels = np.array(data['label'])
-            preprocessed = {
-                'test_data': preprocessed,
-                'test_labels': labels
-            }
+            )]
+        elif mode == 'skf':
+            skf = StratifiedKFold(n_splits=int(1 / ratio), shuffle=True, random_state=42)
+            idxs_list = skf.split(self._processed, self._labels)
 
-        return preprocessed
+        return idxs_list
+
+    def from_idxs(self, idxs):
+        return self._processed.iloc[idxs], self._labels[idxs]
 
     def tokenize(self, data, tokenizer):
         concated_entities = [
