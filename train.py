@@ -17,13 +17,13 @@ def train(args):
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     helper = DataHelper(data_dir=args.data_dir)
-    preprocessed, train_labels = helper.preprocess()
+    preprocessed, labels = helper.preprocess()
     data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
 
-    train_dataset = RelationExtractionDataset(
-        data, train_labels, phase='train', split_ratio=args.split_ratio)
-    validation_dataset = RelationExtractionDataset(
-        data, train_labels, phase='validation', split_ratio=args.split_ratio)
+    train_data = helper.split(pair_data=data, labels=labels, phase='train', split_ratio=args.split_ratio, small=args.small_dataset)
+    validation_data = helper.split(pair_data=data, labels=labels, phase='validation', split_ratio=args.split_ratio, small=args.small_dataset)
+    train_dataset = RelationExtractionDataset(train_data)
+    validation_dataset = RelationExtractionDataset(validation_data)
 
     model_config = AutoConfig.from_pretrained(args.model_name)
     model_config.num_labels = 30
@@ -40,7 +40,7 @@ def train(args):
             output_dir=args.output_dir,
             save_strategy='epoch',
             evaluation_strategy='epoch',
-            save_total_limit=5,
+            save_total_limit=2,
             num_train_epochs=args.epochs,
             learning_rate=5e-5,
             per_device_train_batch_size=args.batch_size,
@@ -99,6 +99,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--eval_strategy', type=str, default='steps')
+    parser.add_argument('--small_dataset', type=bool, default=False)
 
     args = parser.parse_args()
 
