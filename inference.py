@@ -23,7 +23,7 @@ def infer(model, test_dataset, batch_size, collate_fn, device):
                 attention_mask=data['attention_mask'].to(device)
             )
         logits = outputs[0]
-        result = torch.argmax(logits, axis=-1)
+        result = torch.argmax(logits, dim=-1)
         prob = F.softmax(logits, dim=-1)
 
         preds.append(result)
@@ -74,11 +74,16 @@ def inference(args):
         )
 
     if args.mode == 'skf':
-        probs = torch.tensor(probs).mean(dim=0).tolist()
+        probs = torch.tensor(probs).mean(dim=0)
+        preds = torch.argmax(probs, dim=-1)
+        preds = helper.convert_labels_by_dict(
+            labels=preds,
+            dictionary=args.dictionary
+        )
         output = pd.DataFrame({
             'id': _test_data['id'],
-            'pred_label': pred_labels,
-            'probs': probs
+            'pred_label': preds,
+            'probs': probs.tolist()
         })
         output.to_csv(path.join(args.output_dir, f'{args.n_splits}_folds_submission.csv'), index=False)
 
