@@ -54,7 +54,7 @@ def train(args):
     elif args.eval_strategy == 'steps':  # evaluation at steps
         training_args = TrainingArguments(
             output_dir=args.output_dir,                     # output directory
-            save_total_limit=5,  # number of total save model.
+            save_total_limit=2,  # number of total save model.
             save_steps=500,  # model saving step.
             num_train_epochs=args.epochs,  # total number of training epochs
             learning_rate=5e-5,  # learning_rate
