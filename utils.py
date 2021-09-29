@@ -25,7 +25,7 @@ class RelationExtractionDataset(Dataset):
         return item
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.data['input_ids'])
 
 
 class DataHelper:
@@ -53,8 +53,8 @@ class DataHelper:
         })
         if self._mode == 'train':
             self._labels = self.convert_labels_by_dict(labels=data['label'])
-    
-    def split(self, ratio=0.2, mode='plain'):
+
+    def split(self, ratio=0.2, n_splits=5, mode='plain'):
         if mode == 'plain':
             idxs_list = [train_test_split(
                 np.arange(len(self._data)),
@@ -62,18 +62,15 @@ class DataHelper:
                 shuffle=True
             )]
         elif mode == 'skf':
-            skf = StratifiedKFold(n_splits=int(1 / ratio), shuffle=True, random_state=42)
+            skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
             idxs_list = skf.split(self._processed, self._labels)
-
         return idxs_list
 
-    def from_idxs(self, idxs):
-        return self._processed.iloc[idxs], self._labels[idxs]
+    def from_idxs(self, idxs=None):
+        return (self._processed.iloc[idxs], self._labels[idxs]) if self._mode == 'train' else self._processed
 
     def tokenize(self, data, tokenizer):
-        concated_entities = [
-            sub + '[SEP]' + obj for sub, obj in zip(data['subject_entity'], data['object_entity'])
-        ]
+        concated_entities = [sub + '[SEP]' + obj for sub, obj in zip(data['subject_entity'], data['object_entity'])]
         tokenized = tokenizer(
             concated_entities,
             data['sentence'].tolist(),

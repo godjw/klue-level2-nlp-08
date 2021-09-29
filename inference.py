@@ -1,4 +1,5 @@
 import argparse
+from os import path
 
 import torch
 from torch.utils.data import DataLoader
@@ -13,9 +14,8 @@ from utils import *
 
 def infer(model, test_dataset, batch_size, collate_fn, device):
     dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
+    preds, probs = [], []
     model.eval()
-    output_pred = []
-    output_prob = []
     for data in tqdm(dataloader):
         with torch.no_grad():
             outputs = model(
@@ -26,10 +26,10 @@ def infer(model, test_dataset, batch_size, collate_fn, device):
         result = torch.argmax(logits, axis=-1)
         prob = F.softmax(logits, dim=-1)
 
-        output_pred.append(result)
-        output_prob.append(prob)
+        preds.append(result)
+        probs.append(prob)
 
-    return torch.cat(output_pred).tolist(), torch.cat(output_prob, dim=0).tolist()
+    return torch.cat(preds).tolist(), torch.cat(probs, dim=0).tolist()
 
 
 def inference(args):
@@ -38,33 +38,49 @@ def inference(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    helper = DataHelper(data_dir=args.data_dir)
-    preprocessed = helper.preprocess(mode='inference')
-    test_data = helper.tokenize(data=preprocessed['test_data'], tokenizer=tokenizer)
-    test_dataset = RelationExtractionDataset(test_data, preprocessed['test_labels'])
+    helper = DataHelper(data_dir=args.data_dir, mode='inference')
+    _test_data = helper.from_idxs()
+    test_data = helper.tokenize(data=_test_data, tokenizer=tokenizer)
+    test_dataset = RelationExtractionDataset(test_data)
 
-    model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
-    model.parameters
-    model.to(device)
+    probs = []
+    for k in range(args.n_splits if args.mode == 'skf' else 1):
+        model = AutoModelForSequenceClassification.from_pretrained(
+            path.join(args.model_dir, f'{k}_fold' if args.mode == 'skf' else args.mode)
+        )
+        model.to(device)
 
-    pred_labels, pred_probs = infer(
-        model=model,
-        test_dataset=test_dataset,
-        batch_size=args.batch_size,
-        collate_fn=data_collator,
-        device=device
-    )
-    pred_labels = helper.convert_labels_by_dict(
-        labels=pred_labels,
-        dictionary=args.dictionary
-    )
+        pred_labels, pred_probs = infer(
+            model=model,
+            test_dataset=test_dataset,
+            batch_size=args.batch_size,
+            collate_fn=data_collator,
+            device=device
+        )
+        pred_labels = helper.convert_labels_by_dict(
+            labels=pred_labels,
+            dictionary=args.dictionary
+        )
+        probs.append(pred_probs)
 
-    output = pd.DataFrame({
-        'id': preprocessed['test_data']['id'],
-        'pred_label': pred_labels,
-        'probs': pred_probs
-    })
-    output.to_csv(args.output_path, index=False)
+        output = pd.DataFrame({
+            'id': _test_data['id'],
+            'pred_label': pred_labels,
+            'probs': pred_probs
+        })
+        output.to_csv(
+            path.join(args.output_dir, (f'{k}_fold' if args.mode == 'skf' else args.mode) + '_submission.csv'),
+            index=False
+        )
+
+    if args.mode == 'skf':
+        probs = torch.tensor(probs).mean(dim=0).tolist()
+        output = pd.DataFrame({
+            'id': _test_data['id'],
+            'pred_label': pred_labels,
+            'probs': probs
+        })
+        output.to_csv(path.join(args.output_dir, f'{args.n_splits}_folds_submission.csv'), index=False)
 
     print('Inference done')
 
@@ -74,10 +90,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--data_dir', type=str, default='data/test_data.csv')
     parser.add_argument('--dictionary', type=str, default='data/dict_num_to_label.pkl')
-
+    parser.add_argument('--output_dir', type=str, default='./prediction')
     parser.add_argument('--model_dir', type=str, default='./best_model')
+
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
-    parser.add_argument('--output_path', type=str, default='./prediction/submission.csv')
+    parser.add_argument('--mode', type=str, default='plain', choices=['plain', 'skf'])
+    parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=64)
 
     args = parser.parse_args()

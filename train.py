@@ -1,13 +1,33 @@
 import argparse
+from os import path
 
 import torch
+from torch.utils.data import DataLoader
 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
+from datasets.load import load_metric
+
+from tqdm import tqdm
 import wandb
 
 from utils import *
 from metric import compute_metrics
 
+
+def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
+    metric = load_metric(eval_method)
+    dataloader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
+
+    model.eval()
+    for data in tqdm(dataloader):
+        data = {key: value.to(device) for key, value in data.items()}
+        with torch.no_grad():
+            outputs = model(**data)
+        preds = torch.argmax(outputs.logits, dim=-1)
+        metric.add_batch(predictions=preds, references=data['labels'])
+    model.train()
+
+    return metric.compute(average='micro')[eval_method]
 
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -17,13 +37,10 @@ def train(args):
 
     model_config = AutoConfig.from_pretrained(args.model_name)
     model_config.num_labels = 30
-    model = AutoModelForSequenceClassification.from_pretrained(args.model_name, config=model_config)
-    print(model.config)
-    model.parameters
-    model.to(device)
 
+    val_scores = []
     helper = DataHelper(data_dir=args.data_dir)
-    for train_idxs, val_idxs in helper.split(mode=args.mode, ratio=args.split_ratio):
+    for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=args.split_ratio, n_splits=args.n_splits, mode=args.mode)):
         train_data, train_labels = helper.from_idxs(idxs=train_idxs)
         val_data, val_labels = helper.from_idxs(idxs=val_idxs)
 
@@ -33,7 +50,16 @@ def train(args):
         train_dataset = RelationExtractionDataset(train_data, labels=train_labels)
         val_dataset = RelationExtractionDataset(val_data, labels=val_labels)
 
-        # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments
+        model = AutoModelForSequenceClassification.from_pretrained(args.model_name, config=model_config)
+        model.to(device)
+
+        wandb.init(
+            project='klue',
+            entity='chungye-mountain-sherpa',
+            name=f'{args.model_name}_' + (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
+            group=args.model_name.split('/')[-1]
+        )
+
         training_args = TrainingArguments(
             output_dir=args.output_dir,                     # output directory
             evaluation_strategy='steps',                    # evaluation strategy to adopt during training
@@ -56,40 +82,55 @@ def train(args):
 
         trainer = Trainer(
             model=model,
-            args=training_args,                             # training arguments
-            train_dataset=train_dataset,                    # training dataset
-            eval_dataset=val_dataset,                       # evaluation dataset
-            compute_metrics=compute_metrics,                # define metrics function
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            compute_metrics=compute_metrics,
             data_collator=data_collator
         )
-
         trainer.train()
-        model.save_pretrained(args.save_dir)
+        model.save_pretrained(path.join(args.save_dir, f'{k}_fold' if args.mode == 'skf' else args.mode))
+
+        score = evaluate(
+            model=model,
+            val_dataset=val_dataset,
+            batch_size=args.batch_size,
+            collate_fn=data_collator,
+            device=device
+        )
+        val_scores.append(score)
+        wandb.log({'fold': score})
+        wandb.finish()
+
+    if args.mode == 'skf':
+        wandb.init(
+            project='klue',
+            entity='chungye-mountain-sherpa',
+            name=f'{args.model_name}_{args.n_splits}_fold_avg',
+            group=args.model_name.split('/')[-1]
+        )
+        wandb.log({'fold_avg_eval': sum(val_scores) / args.n_splits})
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
-    parser.add_argument('--model_name', type=str, default='klue/bert-base')
-    parser.add_argument('--mode', type=str, default='plain', choices=['plain', 'skf'])
-    parser.add_argument('--split_ratio', type=float, default=0.2)
     parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
     parser.add_argument('--save_dir', type=str, default='./best_model')
+
+    parser.add_argument('--model_name', type=str, default='klue/bert-base')
+    parser.add_argument('--mode', type=str, default='plain', choices=['plain', 'skf'])
+    parser.add_argument('--split_ratio', type=float, default=0.2)
+    parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--warmup_steps', type=int, default=500)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
-    parser.add_argument('--eval_strategy', type=str, default='steps')
+    parser.add_argument('--eval_strategy', type=str, default='steps', choices=['steps', 'epoch'])
 
     args = parser.parse_args()
 
     wandb.login()
-    wandb.init(
-        project='klue',
-        entity='chungye-mountain-sherpa',
-        name=args.model_name,
-        group=args.model_name.split('/')[-1]
-    )
 
     train(args=args)
