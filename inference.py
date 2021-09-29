@@ -12,7 +12,8 @@ from utils import *
 
 
 def infer(model, test_dataset, batch_size, collate_fn, device):
-    dataloader = DataLoader(test_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
+    dataloader = DataLoader(
+        test_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
     model.eval()
     output_pred = []
     output_prob = []
@@ -28,7 +29,7 @@ def infer(model, test_dataset, batch_size, collate_fn, device):
 
         output_pred.append(result)
         output_prob.append(prob)
-    
+
     return torch.cat(output_pred).tolist(), torch.cat(output_prob, dim=0).tolist()
 
 
@@ -72,14 +73,17 @@ def inference(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--data_dir', type=str, default='../dataset/test/test_data.csv')
-    parser.add_argument('--dictionary', type=str, default='./dict_num_to_label.pkl')
+    parser.add_argument('--data_dir', type=str,
+                        default='data/test_data.csv')
+    parser.add_argument('--dictionary', type=str,
+                        default='data/dict_num_to_label.pkl')
 
     parser.add_argument('--model_dir', type=str, default='./best_model')
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
-    parser.add_argument('--output_path', type=str, default='./prediction/submission.csv')
+    parser.add_argument('--output_path', type=str,
+                        default='./prediction/submission.csv')
     parser.add_argument('--batch_size', type=int, default=16)
-    
+
     args = parser.parse_args()
     print(args)
 
