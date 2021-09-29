@@ -42,7 +42,8 @@ def inference(args):
     helper = DataHelper(data_dir=args.data_dir)
     preprocessed, test_labels = helper.preprocess(mode='inference')
     test_data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
-    test_dataset = RelationExtractionDataset(test_data, test_labels)
+    test_data = helper.split(pair_data=test_data, labels=test_labels, phase='inference')
+    test_dataset = RelationExtractionDataset(test_data)
 
     model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
     model.parameters
