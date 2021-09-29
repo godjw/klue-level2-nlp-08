@@ -1,6 +1,19 @@
+# Python
+__pycache__
+
+# Checkpoints
+results/
+
+# wandb
 wandb/
-__pycache__/
+
+# jupyter temp files
+.ipynb_checkpoints
+
+# shell scripts
+*.sh
+
+# saved model
 best_model/
 results/
-best*/
 prediction/

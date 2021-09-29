@@ -16,17 +16,14 @@ def train(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    train_helper = DataHelper(data_dir=args.train_data_dir)
-    train_preprocessed, train_labels = train_helper.preprocess()
-    train_data = train_helper.tokenize(
-        data=train_preprocessed, tokenizer=tokenizer)
-    train_dataset = RelationExtractionDataset(train_data, train_labels)
+    helper = DataHelper(data_dir=args.data_dir)
+    preprocessed, train_labels = helper.preprocess()
+    data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
 
-    valid_helper = DataHelper(data_dir=args.valid_data_dir)
-    valid_preprocessed, valid_labels = valid_helper.preprocess()
-    valid_data = valid_helper.tokenize(
-        data=valid_preprocessed, tokenizer=tokenizer)
-    valid_dataset = RelationExtractionDataset(valid_data, valid_labels)
+    train_dataset = RelationExtractionDataset(
+        data, train_labels, phase='train', split_ratio=args.split_ratio)
+    validation_dataset = RelationExtractionDataset(
+        data, train_labels, phase='validation', split_ratio=args.split_ratio)
 
     model_config = AutoConfig.from_pretrained(args.model_name)
     model_config.num_labels = 30
@@ -80,7 +77,7 @@ def train(args):
         model=model,
         args=training_args,                             # training arguments, defined above
         train_dataset=train_dataset,                    # training dataset
-        eval_dataset=valid_dataset,                     # evaluation dataset
+        eval_dataset=validation_dataset,                # evaluation dataset
         compute_metrics=compute_metrics,                # define metrics function
         data_collator=data_collator
     )
@@ -92,11 +89,8 @@ def train(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--train_data_dir', type=str,
-                        default='data/train_small.csv')
-    parser.add_argument('--valid_data_dir', type=str,
-                        default='data/valid_small.csv')
-
+    parser.add_argument('--data_dir', type=str, default='data/train.csv')
+    parser.add_argument('--split_ratio', type=float, default=0.2)
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
     parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
