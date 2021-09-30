@@ -49,6 +49,7 @@ def train(args):
             weight_decay=0.01,
             logging_dir=args.logging_dir,
             logging_steps=100,
+            metric_for_best_model='micro f1 score',
             load_best_model_at_end=True
         )
     elif args.eval_strategy == 'steps':  # evaluation at steps
@@ -97,8 +98,9 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default='./best_model')
     parser.add_argument('--warmup_steps', type=int, default=500)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--eval_strategy', type=str, default='steps')
+    parser.add_argument('--num_hidden_layers', type=int, default=12)
 
     args = parser.parse_args()
 
