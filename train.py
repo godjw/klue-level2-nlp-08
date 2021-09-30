@@ -65,6 +65,7 @@ def train(args):
             evaluation_strategy='steps',                    # evaluation strategy to adopt during training
             per_device_train_batch_size=args.batch_size,    # batch size per device during training
             per_device_eval_batch_size=args.batch_size,     # batch size for evaluation
+            gradient_accumulation_steps=args.grad_accum,    # number of updates steps to accumulate the gradients for, before performing a backward/update pass
             learning_rate=5e-5,                             # learning_rate
             weight_decay=0.01,                              # strength of weight decay
             num_train_epochs=args.epochs,                   # total number of training epochs
@@ -127,6 +128,7 @@ if __name__ == '__main__':
     parser.add_argument('--warmup_steps', type=int, default=500)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--grad_accum', type=int, default=1)
     parser.add_argument('--eval_strategy', type=str, default='steps', choices=['steps', 'epoch'])
 
     args = parser.parse_args()
