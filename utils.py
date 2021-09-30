@@ -64,6 +64,7 @@ class DataHelper:
             concated_entities,
             data['sentence'].tolist(),
             truncation=True,
+            return_token_type_ids=False,
         )
         return tokenized
 

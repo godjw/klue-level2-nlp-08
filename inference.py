@@ -78,10 +78,11 @@ if __name__ == '__main__':
     parser.add_argument('--dictionary', type=str,
                         default='data/dict_num_to_label.pkl')
 
-    parser.add_argument('--model_dir', type=str, default='./best_model')
-    parser.add_argument('--model_name', type=str, default='klue/bert-base')
+    parser.add_argument('--model_dir', type=str,
+                        default='./best_hp_results/checkpoint-684')
+    parser.add_argument('--model_name', type=str, default='klue/roberta-large')
     parser.add_argument('--output_path', type=str,
-                        default='./prediction/submission.csv')
+                        default='./prediction/klue-roberta-large-best-hp-3epochs.csv')
     parser.add_argument('--batch_size', type=int, default=16)
 
     args = parser.parse_args()

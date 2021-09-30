@@ -3,11 +3,14 @@ import argparse
 import torch
 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
+from transformers import XLMRobertaConfig, XLMRobertaForSequenceClassification
 import wandb
 
 from utils import *
 from metric import compute_metrics
 import os
+import random
+import numpy as np
 
 
 def train(args):
@@ -43,16 +46,16 @@ def train(args):
             output_dir=args.output_dir,
             save_strategy='epoch',
             evaluation_strategy='epoch',
-            save_total_limit=5,
+            save_total_limit=2,
             num_train_epochs=args.epochs,
-            learning_rate=5e-5,
+            learning_rate=8.643223664444307e-05,
             per_device_train_batch_size=args.batch_size,
             per_device_eval_batch_size=args.batch_size,
             warmup_steps=args.warmup_steps,
-            weight_decay=0.01,
+            weight_decay=0.029856983237295187,
             logging_dir=args.logging_dir,
             logging_steps=100,
-            load_best_model_at_end=True
+            gradient_accumulation_steps=32,
         )
     elif args.eval_strategy == 'steps':  # evaluation at steps
         training_args = TrainingArguments(
@@ -68,12 +71,12 @@ def train(args):
             warmup_steps=args.warmup_steps,
             weight_decay=0.01,  # strength of weight decay
             logging_dir=args.logging_dir,  # directory for storing logs
-            logging_steps=100,  # log saving step.
+            logging_steps=250,  # log saving step.
             evaluation_strategy='steps',  # evaluation strategy to adopt during training
             # `no`: No evaluation during training.
             # `steps`: Evaluate every `eval_steps`.
             # `epoch`: Evaluate every end of epoch.
-            eval_steps=250,  # evaluation step.
+            eval_steps=500,  # evaluation step.
             load_best_model_at_end=True
         )
     trainer = Trainer(
@@ -89,30 +92,43 @@ def train(args):
     model.save_pretrained(args.save_dir)
 
 
+def seed_everything(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)  # type: ignore
+    torch.backends.cudnn.deterministic = True  # type: ignore
+    torch.backends.cudnn.benchmark = True  # type: ignore
+
+
 if __name__ == '__main__':
+    seed_everything(30)
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--train_data_dir', type=str,
-                        default='data/train_small.csv')
+                        default='data/train_10.csv')
     parser.add_argument('--valid_data_dir', type=str,
-                        default='data/valid_small.csv')
+                        default='data/valid_10.csv')
 
-    parser.add_argument('--model_name', type=str, default='klue/bert-base')
-    parser.add_argument('--output_dir', type=str, default='./results')
+    parser.add_argument('--model_name', type=str, default='klue/roberta-large')
+    parser.add_argument('--output_dir', type=str, default='./best_hp_results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
-    parser.add_argument('--save_dir', type=str, default='./best_model')
-    parser.add_argument('--warmup_steps', type=int, default=500)
-    parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=16)
-    parser.add_argument('--eval_strategy', type=str, default='steps')
+    parser.add_argument('--save_dir', type=str,
+                        default='./best_hp_klue_roberta_large_model')
+    parser.add_argument('--warmup_steps', type=int, default=123)
+    parser.add_argument('--epochs', type=int, default=3)
+    parser.add_argument('--batch_size', type=int, default=4)
+    parser.add_argument('--eval_strategy', type=str, default='epoch')
 
     args = parser.parse_args()
 
-    wandb.login()
+    # wandb.login()
     wandb.init(
         project='klue',
         entity='chungye-mountain-sherpa',
-        name=args.model_name,
+        name=args.model_name + '/best-hp',
         group=args.model_name.split('/')[-1]
     )
     # NOTE: wandb disable
