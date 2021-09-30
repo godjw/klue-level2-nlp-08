@@ -1,9 +1,13 @@
 import argparse
+from os import path
 
 import torch
+from torch.utils.data import DataLoader
 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
-from transformers import XLMRobertaConfig, XLMRobertaForSequenceClassification
+from datasets.load import load_metric
+
+from tqdm import tqdm
 import wandb
 
 from utils import *
@@ -13,83 +17,114 @@ import random
 import numpy as np
 
 
+def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
+    metric = load_metric(eval_method)
+    dataloader = DataLoader(
+        val_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
+
+    model.eval()
+    for data in tqdm(dataloader):
+        data = {key: value.to(device) for key, value in data.items()}
+        with torch.no_grad():
+            outputs = model(**data)
+        preds = torch.argmax(outputs.logits, dim=-1)
+        metric.add_batch(predictions=preds, references=data['labels'])
+    model.train()
+
+    return metric.compute(average='micro')[eval_method]
+
+
 def train(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    train_helper = DataHelper(data_dir=args.train_data_dir)
-    train_preprocessed, train_labels = train_helper.preprocess()
-    train_data = train_helper.tokenize(
-        data=train_preprocessed, tokenizer=tokenizer)
-    train_dataset = RelationExtractionDataset(train_data, train_labels)
-
-    valid_helper = DataHelper(data_dir=args.valid_data_dir)
-    valid_preprocessed, valid_labels = valid_helper.preprocess()
-    valid_data = valid_helper.tokenize(
-        data=valid_preprocessed, tokenizer=tokenizer)
-    valid_dataset = RelationExtractionDataset(valid_data, valid_labels)
-
     model_config = AutoConfig.from_pretrained(args.model_name)
     model_config.num_labels = 30
-    model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name, config=model_config
-    )
-    print(model.config)
-    model.parameters
-    model.to(device)
 
-    # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments
-    if args.eval_strategy == 'epoch':  # evaluation at epochs
-        training_args = TrainingArguments(
-            output_dir=args.output_dir,
-            save_strategy='epoch',
-            evaluation_strategy='epoch',
-            save_total_limit=2,
-            num_train_epochs=args.epochs,
-            learning_rate=8.643223664444307e-05,
-            per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.batch_size,
-            warmup_steps=args.warmup_steps,
-            weight_decay=0.029856983237295187,
-            logging_dir=args.logging_dir,
-            logging_steps=100,
-            gradient_accumulation_steps=32,
+    val_scores = []
+    helper = DataHelper(data_dir=args.data_dir)
+    for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=args.split_ratio, n_splits=args.n_splits, mode=args.mode)):
+        train_data, train_labels = helper.from_idxs(idxs=train_idxs)
+        val_data, val_labels = helper.from_idxs(idxs=val_idxs)
+
+        train_data = helper.tokenize(train_data, tokenizer=tokenizer)
+        val_data = helper.tokenize(val_data, tokenizer=tokenizer)
+
+        train_dataset = RelationExtractionDataset(
+            train_data, labels=train_labels)
+        val_dataset = RelationExtractionDataset(val_data, labels=val_labels)
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.model_name, config=model_config)
+        model.to(device)
+
+        wandb.init(
+            project='klue',
+            entity='chungye-mountain-sherpa',
+            name=f'{args.model_name}_' +
+            (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
+            group=args.model_name.split('/')[-1]
         )
-    elif args.eval_strategy == 'steps':  # evaluation at steps
+
         training_args = TrainingArguments(
             output_dir=args.output_dir,                     # output directory
-            save_total_limit=5,  # number of total save model.
-            save_steps=500,  # model saving step.
-            num_train_epochs=args.epochs,  # total number of training epochs
-            learning_rate=5e-5,  # learning_rate
+            # evaluation strategy to adopt during training
+            evaluation_strategy='steps',
             # batch size per device during training
             per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.batch_size,  # batch size for evaluation
+            per_device_eval_batch_size=args.batch_size,     # batch size for evaluation
+            # number of updates steps to accumulate the gradients for, before performing a backward/update pass
+            gradient_accumulation_steps=args.grad_accum,
+            learning_rate=5e-5,                             # learning_rate
+            weight_decay=0.01,                              # strength of weight decay
+            # total number of training epochs
+            num_train_epochs=args.epochs,
             # number of warmup steps for learning rate scheduler
             warmup_steps=args.warmup_steps,
-            weight_decay=0.01,  # strength of weight decay
-            logging_dir=args.logging_dir,  # directory for storing logs
-            logging_steps=250,  # log saving step.
-            evaluation_strategy='steps',  # evaluation strategy to adopt during training
-            # `no`: No evaluation during training.
-            # `steps`: Evaluate every `eval_steps`.
-            # `epoch`: Evaluate every end of epoch.
-            eval_steps=500,  # evaluation step.
+            logging_dir=args.logging_dir,                   # directory for storing logs
+            logging_steps=100,                              # log saving step
+            save_steps=500,                                 # model saving step
+            save_total_limit=2,                             # number of total save model
+            eval_steps=250,                                 # evaluation step
             load_best_model_at_end=True
         )
-    trainer = Trainer(
-        model=model,
-        args=training_args,                             # training arguments, defined above
-        train_dataset=train_dataset,                    # training dataset
-        eval_dataset=valid_dataset,                     # evaluation dataset
-        compute_metrics=compute_metrics,                # define metrics function
-        data_collator=data_collator
-    )
+        if args.eval_strategy == 'epoch':
+            training_args.evaluation_strategy = args.eval_strategy
+            training_args.save_strategy = args.eval_strategy
 
-    trainer.train()
-    model.save_pretrained(args.save_dir)
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            compute_metrics=compute_metrics,
+            data_collator=data_collator
+        )
+        trainer.train()
+        model.save_pretrained(
+            path.join(args.save_dir, f'{k}_fold' if args.mode == 'skf' else args.mode))
+
+        score = evaluate(
+            model=model,
+            val_dataset=val_dataset,
+            batch_size=args.batch_size,
+            collate_fn=data_collator,
+            device=device
+        )
+        val_scores.append(score)
+        wandb.log({'fold': score})
+        wandb.finish()
+
+    if args.mode == 'skf':
+        wandb.init(
+            project='klue',
+            entity='chungye-mountain-sherpa',
+            name=f'{args.model_name}_{args.n_splits}_fold_avg',
+            group=args.model_name.split('/')[-1]
+        )
+        wandb.log({'fold_avg_eval': sum(val_scores) / args.n_splits})
 
 
 def seed_everything(seed: int = 42):
@@ -107,30 +142,26 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--train_data_dir', type=str,
-                        default='data/train_10.csv')
-    parser.add_argument('--valid_data_dir', type=str,
-                        default='data/valid_10.csv')
-
-    parser.add_argument('--model_name', type=str, default='klue/roberta-large')
-    parser.add_argument('--output_dir', type=str, default='./best_hp_results')
+    parser.add_argument('--data_dir', type=str, default='data/train.csv')
+    parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
-    parser.add_argument('--save_dir', type=str,
-                        default='./best_hp_klue_roberta_large_model')
-    parser.add_argument('--warmup_steps', type=int, default=123)
-    parser.add_argument('--epochs', type=int, default=3)
-    parser.add_argument('--batch_size', type=int, default=4)
-    parser.add_argument('--eval_strategy', type=str, default='epoch')
+    parser.add_argument('--save_dir', type=str, default='./best_model')
+
+    parser.add_argument('--model_name', type=str, default='klue/bert-base')
+    parser.add_argument('--mode', type=str, default='plain',
+                        choices=['plain', 'skf'])
+    parser.add_argument('--split_ratio', type=float, default=0.2)
+    parser.add_argument('--n_splits', type=int, default=5)
+    parser.add_argument('--warmup_steps', type=int, default=500)
+    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--grad_accum', type=int, default=1)
+    parser.add_argument('--eval_strategy', type=str,
+                        default='steps', choices=['steps', 'epoch'])
 
     args = parser.parse_args()
 
     # wandb.login()
-    wandb.init(
-        project='klue',
-        entity='chungye-mountain-sherpa',
-        name=args.model_name + '/best-hp',
-        group=args.model_name.split('/')[-1]
-    )
     # NOTE: wandb disable
     # os.environ["WANDB_DISABLED"] = "true"
 
