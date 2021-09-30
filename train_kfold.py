@@ -116,7 +116,7 @@ def train(args):
         )
 
         trainer.train()
-        model.save_pretrained("./results/" + str(n_fold))
+        model.save_pretrained(args.save_dir + '/' + str(n_fold))
 
         metric = load_metric("f1")
         model.eval()
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=str,
-                        default="../dataset/train/train.csv")
+                        default="data/train.csv")
 
     parser.add_argument("--model_name", type=str, default="klue/bert-base")
     parser.add_argument("--output_dir", type=str, default="./results")
