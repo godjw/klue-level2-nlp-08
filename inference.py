@@ -75,7 +75,7 @@ def inference(args):
 
     if args.mode == 'skf':
         probs = torch.tensor(probs).mean(dim=0)
-        preds = torch.argmax(probs, dim=-1)
+        preds = torch.argmax(probs, dim=-1).tolist()
         preds = helper.convert_labels_by_dict(
             labels=preds,
             dictionary=args.dictionary
