@@ -1,5 +1,7 @@
 import ast
 import pickle
+import os
+import random
 
 import torch
 from torch.utils.data import Dataset
@@ -62,7 +64,7 @@ class DataHelper:
                 shuffle=True
             )]
         elif mode == 'skf':
-            skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+            skf = StratifiedKFold(n_splits=n_splits, shuffle=True)
             idxs_list = skf.split(self._processed, self._labels)
         return idxs_list
 
@@ -82,3 +84,13 @@ class DataHelper:
         with open(dictionary, 'rb') as f:
             dictionary = pickle.load(f)
         return np.array([dictionary[label] for label in labels])
+
+
+def seed_everything(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True

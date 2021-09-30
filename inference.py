@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, Data
 import pandas as pd
 from tqdm import tqdm
 
-from utils import *
+from utils import DataHelper, RelationExtractionDataset
 
 
 def infer(model, test_dataset, batch_size, collate_fn, device):

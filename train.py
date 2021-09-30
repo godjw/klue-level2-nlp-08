@@ -10,7 +10,7 @@ from datasets.load import load_metric
 from tqdm import tqdm
 import wandb
 
-from utils import *
+from utils import DataHelper, RelationExtractionDataset, seed_everything
 from metric import compute_metrics
 
 
@@ -57,7 +57,7 @@ def train(args):
             project='klue',
             entity='chungye-mountain-sherpa',
             name=f'{args.model_name}_' + (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
-            group=args.model_name.split('/')[-1]
+            group=args.model_name.split('/')[-1] + args.test_name
         )
 
         training_args = TrainingArguments(
@@ -65,17 +65,18 @@ def train(args):
             evaluation_strategy='steps',                    # evaluation strategy to adopt during training
             per_device_train_batch_size=args.batch_size,    # batch size per device during training
             per_device_eval_batch_size=args.batch_size,     # batch size for evaluation
-            gradient_accumulation_steps=args.grad_accum,    # number of updates steps to accumulate the gradients for, before performing a backward/update pass
-            learning_rate=5e-5,                             # learning_rate
+            gradient_accumulation_steps=args.grad_accum,    # number of update steps to accumulate the gradients
+            learning_rate=5e-05,                            # learning_rate
             weight_decay=0.01,                              # strength of weight decay
             num_train_epochs=args.epochs,                   # total number of training epochs
             warmup_steps=args.warmup_steps,                 # number of warmup steps for learning rate scheduler
             logging_dir=args.logging_dir,                   # directory for storing logs
             logging_steps=100,                              # log saving step
-            save_steps=500,                                 # model saving step
+            save_steps=30,                                  # model saving step
             save_total_limit=2,                             # number of total save model
-            eval_steps=250,                                 # evaluation step
-            load_best_model_at_end=True
+            eval_steps=30,                                  # evaluation step
+            load_best_model_at_end=True,
+            metric_for_best_model='micro f1 score'
         )
         if args.eval_strategy == 'epoch':
             training_args.evaluation_strategy = args.eval_strategy
@@ -108,7 +109,7 @@ def train(args):
             project='klue',
             entity='chungye-mountain-sherpa',
             name=f'{args.model_name}_{args.n_splits}_fold_avg',
-            group=args.model_name.split('/')[-1]
+            group=args.model_name.split('/')[-1] + args.test_name
         )
         wandb.log({'fold_avg_eval': sum(val_scores) / args.n_splits})
 
@@ -120,6 +121,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
     parser.add_argument('--save_dir', type=str, default='./best_model')
+    parser.add_argument('--test_name', type=str, default='')
 
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
     parser.add_argument('--mode', type=str, default='plain', choices=['plain', 'skf'])
@@ -135,4 +137,5 @@ if __name__ == '__main__':
 
     wandb.login()
 
+    seed_everything(seed=30)
     train(args=args)
