@@ -2,6 +2,8 @@ import argparse
 from os import path
 
 import torch
+from torch import nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
@@ -68,31 +70,43 @@ def train(args):
             group=args.model_name.split('/')[-1]
         )
 
-        training_args = TrainingArguments(
-            output_dir=args.output_dir,                     # output directory
-            # evaluation strategy to adopt during training
-            evaluation_strategy='steps',
-            # batch size per device during training
-            per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.batch_size,     # batch size for evaluation
-            # number of updates steps to accumulate the gradients for, before performing a backward/update pass
-            gradient_accumulation_steps=args.grad_accum,
-            learning_rate=5e-5,                             # learning_rate
-            weight_decay=0.01,                              # strength of weight decay
-            # total number of training epochs
-            num_train_epochs=args.epochs,
-            # number of warmup steps for learning rate scheduler
-            warmup_steps=args.warmup_steps,
-            logging_dir=args.logging_dir,                   # directory for storing logs
-            logging_steps=100,                              # log saving step
-            save_steps=500,                                 # model saving step
-            save_total_limit=2,                             # number of total save model
-            eval_steps=250,                                 # evaluation step
-            load_best_model_at_end=True
-        )
         if args.eval_strategy == 'epoch':
-            training_args.evaluation_strategy = args.eval_strategy
-            training_args.save_strategy = args.eval_strategy
+            training_args = TrainingArguments(
+                output_dir=args.output_dir,
+                per_device_train_batch_size=args.batch_size,
+                per_device_eval_batch_size=args.batch_size,
+                gradient_accumulation_steps=args.grad_accum,
+                learning_rate=8.643223664444307e-05,
+                weight_decay=0.029856983237295187,
+                num_train_epochs=args.epochs,
+                warmup_steps=args.warmup_steps,
+                logging_dir=args.logging_dir,
+                logging_steps=200,
+                save_total_limit=2,
+                evaluation_strategy=args.eval_strategy,
+                save_strategy=args.eval_strategy,
+                load_best_model_at_end=True,
+                metric_for_best_model='micro f1 score'
+            )
+        elif args.eval_strategy == 'steps':
+            training_args = TrainingArguments(
+                output_dir=args.output_dir,
+                per_device_train_batch_size=args.batch_size,
+                per_device_eval_batch_size=args.batch_size,
+                gradient_accumulation_steps=args.grad_accum,
+                learning_rate=8.643223664444307e-05,
+                weight_decay=0.029856983237295187,
+                num_train_epochs=args.epochs,
+                # warmup_steps=args.warmup_steps,
+                logging_dir=args.logging_dir,
+                logging_steps=200,
+                save_total_limit=2,
+                evaluation_strategy=args.eval_strategy,
+                eval_steps=200,
+                save_steps=200,
+                load_best_model_at_end=True,
+                metric_for_best_model='micro f1 score',
+            )
 
         trainer = Trainer(
             model=model,
@@ -143,21 +157,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
-    parser.add_argument('--output_dir', type=str, default='./results')
+    parser.add_argument('--output_dir', type=str,
+                        default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
-    parser.add_argument('--save_dir', type=str, default='./best_model')
+    parser.add_argument('--save_dir', type=str,
+                        default='./best_model')
 
-    parser.add_argument('--model_name', type=str, default='klue/bert-base')
+    parser.add_argument('--model_name', type=str, default='klue/roberta-large')
     parser.add_argument('--mode', type=str, default='plain',
                         choices=['plain', 'skf'])
-    parser.add_argument('--split_ratio', type=float, default=0.2)
+    parser.add_argument('--split_ratio', type=float, default=0.1)
     parser.add_argument('--n_splits', type=int, default=5)
-    parser.add_argument('--warmup_steps', type=int, default=500)
-    parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=64)
-    parser.add_argument('--grad_accum', type=int, default=1)
+    parser.add_argument('--warmup_steps', type=int, default=123)
+    parser.add_argument('--epochs', type=int, default=3)
+    parser.add_argument('--batch_size', type=int, default=4)
+    parser.add_argument('--grad_accum', type=int, default=32)
     parser.add_argument('--eval_strategy', type=str,
-                        default='steps', choices=['steps', 'epoch'])
+                        default='epoch', choices=['steps', 'epoch'])
 
     args = parser.parse_args()
 
