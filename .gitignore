@@ -17,3 +17,5 @@ wandb/
 best_model/
 results/
 prediction/
+
+test.ipynb
