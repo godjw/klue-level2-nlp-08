@@ -60,27 +60,42 @@ def train(args):
             group=args.model_name.split('/')[-1] + args.test_name
         )
 
-        training_args = TrainingArguments(
-            output_dir=args.output_dir,                     # output directory
-            evaluation_strategy='steps',                    # evaluation strategy to adopt during training
-            per_device_train_batch_size=args.batch_size,    # batch size per device during training
-            per_device_eval_batch_size=args.batch_size,     # batch size for evaluation
-            gradient_accumulation_steps=args.grad_accum,    # number of update steps to accumulate the gradients
-            learning_rate=5e-05,                            # learning_rate
-            weight_decay=0.01,                              # strength of weight decay
-            num_train_epochs=args.epochs,                   # total number of training epochs
-            warmup_steps=args.warmup_steps,                 # number of warmup steps for learning rate scheduler
-            logging_dir=args.logging_dir,                   # directory for storing logs
-            logging_steps=100,                              # log saving step
-            save_steps=30,                                  # model saving step
-            save_total_limit=2,                             # number of total save model
-            eval_steps=30,                                  # evaluation step
-            load_best_model_at_end=True,
-            metric_for_best_model='micro f1 score'
-        )
         if args.eval_strategy == 'epoch':
-            training_args.evaluation_strategy = args.eval_strategy
-            training_args.save_strategy = args.eval_strategy
+            training_args = TrainingArguments(
+                output_dir=args.output_dir,
+                per_device_train_batch_size=args.batch_size,
+                per_device_eval_batch_size=args.batch_size,
+                gradient_accumulation_steps=args.grad_accum,
+                learning_rate=5e-05,
+                weight_decay=0.01,
+                num_train_epochs=args.epochs,
+                logging_dir=args.logging_dir,
+                logging_steps=200,
+                save_total_limit=2,
+                evaluation_strategy=args.eval_strategy,
+                save_strategy=args.eval_strategy,
+                load_best_model_at_end=True,
+                metric_for_best_model='micro f1 score'
+            )
+        elif args.eval_strategy == 'steps':
+            training_args = TrainingArguments(
+                output_dir=args.output_dir,
+                per_device_train_batch_size=args.batch_size,
+                per_device_eval_batch_size=args.batch_size,
+                gradient_accumulation_steps=args.grad_accum,
+                learning_rate=5e-05,
+                weight_decay=0.01,
+                num_train_epochs=args.epochs,
+                warmup_steps=args.warmup_steps,
+                logging_dir=args.logging_dir,
+                logging_steps=200,
+                save_total_limit=2,
+                evaluation_strategy=args.eval_strategy,
+                eval_steps=30,
+                save_steps=30,
+                load_best_model_at_end=True,
+                metric_for_best_model='micro f1 score',
+            )
 
         trainer = Trainer(
             model=model,
@@ -127,7 +142,7 @@ if __name__ == '__main__':
     parser.add_argument('--mode', type=str, default='plain', choices=['plain', 'skf'])
     parser.add_argument('--split_ratio', type=float, default=0.2)
     parser.add_argument('--n_splits', type=int, default=5)
-    parser.add_argument('--warmup_steps', type=int, default=500)
+    parser.add_argument('--warmup_steps', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--grad_accum', type=int, default=1)

@@ -10,6 +10,8 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 import pandas as pd
 import numpy as np
 
+from torch.utils.data.dataset import Subset
+
 
 class RelationExtractionDataset(Dataset):
     """
@@ -78,13 +80,14 @@ class DataHelper:
                 for sent, sub_info, obj_info in zip(data['sentence'], data['subject_entity'], data['object_entity'])
             ],
             truncation=True,
+            return_token_type_ids=False
         )
         return tokenized
-    
+
     def _emphasize_entities(self, sent, sub_info, obj_info):
         sub_s, sub_e = sub_info['start_idx'], sub_info['end_idx'] + 1
         obj_s, obj_e = obj_info['start_idx'], obj_info['end_idx'] + 1
-        if sub_info['start_idx'] < obj_info['start_idx']:
+        if sub_s < obj_s:
             sent = sent[:sub_s] + '[' + sent[sub_s:sub_e] + ']' + sent[sub_e:obj_s] + '{' + sent[obj_s:obj_e] + '}' + sent[obj_e:]
         else:
             sent = sent[:obj_s] + '{' + sent[obj_s:obj_e] + '}' + sent[obj_e:sub_s] + '[' + sent[sub_s:sub_e] + ']' + sent[sub_e:]
