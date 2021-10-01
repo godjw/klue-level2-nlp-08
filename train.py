@@ -40,23 +40,23 @@ def train(args):
             output_dir=args.output_dir,
             save_strategy='epoch',
             evaluation_strategy='epoch',
-            save_total_limit=5,
+            save_total_limit=2,
             num_train_epochs=args.epochs,
-            learning_rate=5e-5,
+            learning_rate=5e-05,
             per_device_train_batch_size=args.batch_size,
             per_device_eval_batch_size=args.batch_size,
             warmup_steps=args.warmup_steps,
             weight_decay=0.01,
             logging_dir=args.logging_dir,
             logging_steps=100,
-            metric_for_best_model='micro f1 score',
+            gradient_accumulation_steps=32,
             load_best_model_at_end=True
         )
     elif args.eval_strategy == 'steps':  # evaluation at steps
         training_args = TrainingArguments(
             output_dir=args.output_dir,                     # output directory
-            save_total_limit=5,  # number of total save model.
-            save_steps=500,  # model saving step.
+            save_total_limit=2,  # number of total save model.
+            save_steps=100,  # model saving step.
             num_train_epochs=args.epochs,  # total number of training epochs
             learning_rate=5e-5,  # learning_rate
             # batch size per device during training
@@ -66,12 +66,13 @@ def train(args):
             warmup_steps=args.warmup_steps,
             weight_decay=0.01,  # strength of weight decay
             logging_dir=args.logging_dir,  # directory for storing logs
-            logging_steps=100,  # log saving step.
+            logging_steps=30,  # log saving step.
             evaluation_strategy='steps',  # evaluation strategy to adopt during training
             # `no`: No evaluation during training.
             # `steps`: Evaluate every `eval_steps`.
             # `epoch`: Evaluate every end of epoch.
-            eval_steps=250,  # evaluation step.
+            eval_steps=100,  # evaluation step.
+            gradient_accumulation_steps=32,
             load_best_model_at_end=True
         )
     trainer = Trainer(
@@ -91,14 +92,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
-    parser.add_argument('--split_ratio', type=float, default=0.2)
+    parser.add_argument('--split_ratio', type=float, default=0.1)
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
     parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
     parser.add_argument('--save_dir', type=str, default='./best_model')
-    parser.add_argument('--warmup_steps', type=int, default=500)
+    parser.add_argument('--warmup_steps', type=int, default=300)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--eval_strategy', type=str, default='steps')
     parser.add_argument('--num_hidden_layers', type=int, default=12)
 
