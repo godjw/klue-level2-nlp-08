@@ -42,10 +42,10 @@ class DataHelper:
     
     def _preprocess(self):
         data = self._data
-        extract = lambda d: ast.literal_eval(d)['word']
+        to_dict = lambda d: ast.literal_eval(d)
 
-        subjects = list(map(extract, data['subject_entity']))
-        objects = list(map(extract, data['object_entity']))
+        subjects = list(map(to_dict, data['subject_entity']))
+        objects = list(map(to_dict, data['object_entity']))
 
         self._processed = pd.DataFrame({
             'id': data['id'],
@@ -72,13 +72,23 @@ class DataHelper:
         return (self._processed.iloc[idxs], self._labels[idxs]) if self._mode == 'train' else self._processed
 
     def tokenize(self, data, tokenizer):
-        concated_entities = [sub + '[SEP]' + obj for sub, obj in zip(data['subject_entity'], data['object_entity'])]
         tokenized = tokenizer(
-            concated_entities,
-            data['sentence'].tolist(),
+            [
+                self._emphasize_entities(sent=sent, sub_info=sub_info, obj_info=obj_info)
+                for sent, sub_info, obj_info in zip(data['sentence'], data['subject_entity'], data['object_entity'])
+            ],
             truncation=True,
         )
         return tokenized
+    
+    def _emphasize_entities(self, sent, sub_info, obj_info):
+        sub_s, sub_e = sub_info['start_idx'], sub_info['end_idx'] + 1
+        obj_s, obj_e = obj_info['start_idx'], obj_info['end_idx'] + 1
+        if sub_info['start_idx'] < obj_info['start_idx']:
+            sent = sent[:sub_s] + '[' + sent[sub_s:sub_e] + ']' + sent[sub_e:obj_s] + '{' + sent[obj_s:obj_e] + '}' + sent[obj_e:]
+        else:
+            sent = sent[:obj_s] + '{' + sent[obj_s:obj_e] + '}' + sent[obj_e:sub_s] + '[' + sent[sub_s:sub_e] + ']' + sent[sub_e:]
+        return sent
 
     def convert_labels_by_dict(self, labels, dictionary='data/dict_label_to_num.pkl'):
         with open(dictionary, 'rb') as f:
