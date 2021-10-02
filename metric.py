@@ -60,3 +60,20 @@ def compute_metrics(pred):
         'auprc': auprc,
         'accuracy': acc,
     }
+
+
+def compute_metrics_split(pred):
+    """
+    Returns metrics for prediction evaluation
+    """
+
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+
+    f1 = f1_score(preds, labels, average='macro')
+    acc = accuracy_score(labels, preds)
+
+    return {
+        'macro f1 score': f1,
+        'accuracy': acc,
+    }
