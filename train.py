@@ -1,118 +1,226 @@
 import argparse
+from os import path
 
 import torch
+from torch import nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
+from datasets.load import load_metric
+
+from tqdm import tqdm
 import wandb
 
-from utils import *
+from utils import RelationExtractionDataset, DataHelper, ConfigParser
 from metric import compute_metrics
 import os
+import random
+import numpy as np
+
+
+class WeightedFocalLoss(nn.Module):
+    "Non weighted version of Focal Loss"
+
+    def __init__(self, alpha=.25, gamma=2):
+        super(WeightedFocalLoss, self).__init__()
+        self.alpha = torch.tensor([alpha, 1 - alpha]).cuda()
+        self.gamma = gamma
+
+    def forward(self, inputs, targets):
+        BCE_loss = F.binary_cross_entropy_with_logits(
+            inputs, targets, reduction='none')
+        targets = targets.type(torch.long)
+        at = self.alpha.gather(0, targets.data.view(-1))
+        pt = torch.exp(-BCE_loss)
+        F_loss = at * (1 - pt)**self.gamma * BCE_loss
+        return F_loss.mean()
+
+
+class MyTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        if self.label_smoother is not None and "labels" in inputs:
+            labels = inputs.pop("labels")
+        else:
+            labels = None
+        loss_fct = WeightedFocalLoss()
+        outputs = model(**inputs)
+        if labels is not None:
+            loss = loss_fct(outputs[0], labels)
+        else:
+            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+        return (loss, outputs) if return_outputs else loss
+
+
+def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
+    metric = load_metric(eval_method)
+    dataloader = DataLoader(
+        val_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
+
+    model.eval()
+    for data in tqdm(dataloader):
+        data = {key: value.to(device) for key, value in data.items()}
+        with torch.no_grad():
+            outputs = model(**data)
+        preds = torch.argmax(outputs.logits, dim=-1)
+        metric.add_batch(predictions=preds, references=data['labels'])
+    model.train()
+
+    return metric.compute(average='micro')[eval_method]
 
 
 def train(args):
+    hp_config = ConfigParser(config=args.hp_config).config
+    seed_everything(hp_config['seed'])
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    helper = DataHelper(data_dir=args.data_dir, model_name=args.model_name)
-    preprocessed, train_labels = helper.preprocess()
-    data = helper.tokenize(data=preprocessed, tokenizer=tokenizer)
-
-    train_dataset = RelationExtractionDataset(
-        data, train_labels, phase='train', split_ratio=args.split_ratio)
-    validation_dataset = RelationExtractionDataset(
-        data, train_labels, phase='validation', split_ratio=args.split_ratio)
-
     model_config = AutoConfig.from_pretrained(args.model_name)
     model_config.num_labels = 30
-    model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name, config=model_config
-    )
-    print(model.config)
-    model.parameters
-    model.to(device)
 
-    # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments
-    if args.eval_strategy == 'epoch':  # evaluation at epochs
-        training_args = TrainingArguments(
-            output_dir=args.output_dir,
-            save_strategy='epoch',
-            evaluation_strategy='epoch',
-            save_total_limit=2,
-            num_train_epochs=args.epochs,
-            learning_rate=5e-05,
-            per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.batch_size,
-            warmup_steps=args.warmup_steps,
-            weight_decay=0.01,
-            logging_dir=args.logging_dir,
-            logging_steps=100,
-            gradient_accumulation_steps=1,
-            load_best_model_at_end=True
-        )
-    elif args.eval_strategy == 'steps':  # evaluation at steps
-        training_args = TrainingArguments(
-            output_dir=args.output_dir,                     # output directory
-            save_total_limit=2,  # number of total save model.
-            save_steps=100,  # model saving step.
-            num_train_epochs=args.epochs,  # total number of training epochs
-            learning_rate=5e-5,  # learning_rate
-            # batch size per device during training
-            per_device_train_batch_size=args.batch_size,
-            per_device_eval_batch_size=args.batch_size,  # batch size for evaluation
-            # number of warmup steps for learning rate scheduler
-            warmup_steps=args.warmup_steps,
-            weight_decay=0.01,  # strength of weight decay
-            logging_dir=args.logging_dir,  # directory for storing logs
-            logging_steps=30,  # log saving step.
-            evaluation_strategy='steps',  # evaluation strategy to adopt during training
-            # `no`: No evaluation during training.
-            # `steps`: Evaluate every `eval_steps`.
-            # `epoch`: Evaluate every end of epoch.
-            eval_steps=100,  # evaluation step.
-            gradient_accumulation_steps=32,
-            load_best_model_at_end=True
-        )
-    trainer = Trainer(
-        model=model,
-        args=training_args,                             # training arguments, defined above
-        train_dataset=train_dataset,                    # training dataset
-        eval_dataset=validation_dataset,                # evaluation dataset
-        compute_metrics=compute_metrics,                # define metrics function
-        data_collator=data_collator
-    )
+    if args.disable_wandb == True:
+        os.environ["WANDB_DISABLED"] = "true"
+    else:
+        wandb.login()
 
-    trainer.train()
-    model.save_pretrained(args.save_dir)
+    val_scores = []
+    helper = DataHelper(data_dir=args.data_dir,
+                        add_ent_token=args.add_ent_token)
+    for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=args.split_ratio, n_splits=args.n_splits, mode=args.mode, random_seed=hp_config['seed'])):
+        train_data, train_labels = helper.from_idxs(idxs=train_idxs)
+        val_data, val_labels = helper.from_idxs(idxs=val_idxs)
+
+        train_data = helper.tokenize(train_data, tokenizer=tokenizer)
+        val_data = helper.tokenize(val_data, tokenizer=tokenizer)
+
+        train_dataset = RelationExtractionDataset(
+            train_data, labels=train_labels)
+        val_dataset = RelationExtractionDataset(val_data, labels=val_labels)
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.model_name, config=model_config)
+        model.to(device)
+
+        if args.disable_wandb == False:
+            wandb.init(
+                project='klue',
+                entity='chungye-mountain-sherpa',
+                name=f'{args.model_name}_' +
+                (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
+                group=args.model_name.split('/')[-1]
+            )
+
+        if args.eval_strategy == 'epoch':
+            training_args = TrainingArguments(
+                output_dir=args.output_dir,
+                per_device_train_batch_size=hp_config['batch_size'],
+                per_device_eval_batch_size=hp_config['batch_size'],
+                gradient_accumulation_steps=hp_config['gradient_accumulation_steps'],
+                learning_rate=hp_config['learning_rate'],
+                weight_decay=hp_config['weight_decay'],
+                num_train_epochs=hp_config['epochs'],
+                logging_dir=args.logging_dir,
+                logging_steps=200,
+                save_total_limit=2,
+                evaluation_strategy=args.eval_strategy,
+                save_strategy=args.eval_strategy,
+                load_best_model_at_end=True,
+                metric_for_best_model='micro f1 score'
+            )
+        elif args.eval_strategy == 'steps':
+            training_args = TrainingArguments(
+                output_dir=args.output_dir,
+                per_device_train_batch_size=hp_config['batch_size'],
+                per_device_eval_batch_size=hp_config['batch_size'],
+                gradient_accumulation_steps=hp_config['gradient_accumulation_steps'],
+                learning_rate=hp_config['learning_rate'],
+                weight_decay=hp_config['weight_decay'],
+                num_train_epochs=hp_config['epochs'],
+                logging_dir=args.logging_dir,
+                logging_steps=200,
+                save_total_limit=2,
+                evaluation_strategy=args.eval_strategy,
+                eval_steps=200,
+                save_steps=200,
+                load_best_model_at_end=True,
+                metric_for_best_model='micro f1 score',
+            )
+
+        # trainer = Trainer(
+        trainer = MyTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+            compute_metrics=compute_metrics,
+            data_collator=data_collator
+        )
+        trainer.train()
+        model.save_pretrained(
+            path.join(args.save_dir, f'{k}_fold' if args.mode == 'skf' else args.mode))
+
+        score = evaluate(
+            model=model,
+            val_dataset=val_dataset,
+            batch_size=hp_config['batch_size'],
+            collate_fn=data_collator,
+            device=device
+        )
+        val_scores.append(score)
+
+        if args.disable_wandb == False:
+            wandb.log({'fold': score})
+            wandb.finish()
+
+    if args.mode == 'skf' and args.disable_wandb == False:
+        wandb.init(
+            project='klue',
+            entity='chungye-mountain-sherpa',
+            name=f'{args.model_name}_{args.n_splits}_fold_avg',
+            group=args.model_name.split('/')[-1]
+        )
+        wandb.log({'fold_avg_eval': sum(val_scores) / args.n_splits})
+
+
+def seed_everything(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--hp_config', type=str,
+                        default='hp_config/roberta_small.json')
+
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
-    parser.add_argument('--split_ratio', type=float, default=0.1)
-    parser.add_argument('--model_name', type=str, default='klue/bert-base')
-    parser.add_argument('--output_dir', type=str, default='./results')
+    parser.add_argument('--output_dir', type=str,
+                        default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
-    parser.add_argument('--save_dir', type=str, default='./best_model')
-    parser.add_argument('--warmup_steps', type=int, default=300)
-    parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--batch_size', type=int, default=64)
-    parser.add_argument('--eval_strategy', type=str, default='epoch')
-    parser.add_argument('--num_hidden_layers', type=int, default=12)
+    parser.add_argument('--save_dir', type=str,
+                        default='./best_model')
+
+    parser.add_argument('--model_name', type=str, default='klue/roberta-small')
+    parser.add_argument('--mode', type=str, default='plain',
+                        choices=['plain', 'skf'])
+    parser.add_argument('--split_ratio', type=float, default=0.1)
+    parser.add_argument('--n_splits', type=int, default=5)
+    parser.add_argument('--eval_strategy', type=str,
+                        default='epoch', choices=['steps', 'epoch'])
+    parser.add_argument('--add_ent_token', type=bool, default=True)
+    parser.add_argument('--disable_wandb', type=bool, default=False)
 
     args = parser.parse_args()
-
-    wandb.login()
-    wandb.init(
-        project='jinwon',
-        entity='chungye-mountain-sherpa',
-        name=args.model_name,
-        group=args.model_name.split('/')[-1]
-    )
-    # NOTE: wandb disable
-    # os.environ["WANDB_DISABLED"] = "true"
 
     train(args=args)
