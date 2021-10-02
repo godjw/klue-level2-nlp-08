@@ -39,7 +39,8 @@ def inference(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-    helper = DataHelper(data_dir=args.data_dir, mode='inference')
+    helper = DataHelper(data_dir=args.data_dir,
+                        mode='inference', add_ent_token=args.add_ent_token)
     _test_data = helper.from_idxs()
     test_data = helper.tokenize(data=_test_data, tokenizer=tokenizer)
     test_dataset = RelationExtractionDataset(test_data)
@@ -108,6 +109,7 @@ if __name__ == '__main__':
                         choices=['plain', 'skf'])
     parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=64)
+    parser.add_argument('--add_ent_token', type=bool, default=True)
 
     args = parser.parse_args()
     print(args)
