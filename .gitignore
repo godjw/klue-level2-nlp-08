@@ -17,3 +17,8 @@ wandb/
 best_model/
 results/
 prediction/
+
+tmp/
+sota_focal/
+c_t/
+compare.ipynb
