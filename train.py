@@ -202,7 +202,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--hp_config', type=str,
-                        default='config/roberta_small.json')
+                        default='hp_config/roberta_small.json')
 
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
     parser.add_argument('--output_dir', type=str,
