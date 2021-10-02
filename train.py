@@ -91,7 +91,8 @@ def train(args):
 
     val_scores = []
     helper = DataHelper(data_dir=args.data_dir,
-                        add_ent_token=args.add_ent_token)
+                        add_ent_token=args.add_ent_token,
+                        aug_data_dir=args.aug_data_dir)
     for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=args.split_ratio, n_splits=args.n_splits, mode=args.mode, random_seed=hp_config['seed'])):
         train_data, train_labels = helper.from_idxs(idxs=train_idxs)
         val_data, val_labels = helper.from_idxs(idxs=val_idxs)
@@ -183,7 +184,7 @@ def train(args):
             project='klue',
             entity='chungye-mountain-sherpa',
             name=f'{args.model_name}_{args.n_splits}_fold_avg',
-            group=args.model_name.split('/')[-1]
+            group='yohan-tokenizer-test/' + args.model_name.split('/')[-1]
         )
         wandb.log({'fold_avg_eval': sum(val_scores) / args.n_splits})
 
@@ -205,6 +206,7 @@ if __name__ == '__main__':
                         default='hp_config/roberta_small.json')
 
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
+    parser.add_argument('--aug_data_dir', type=str, default='')
     parser.add_argument('--output_dir', type=str,
                         default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
