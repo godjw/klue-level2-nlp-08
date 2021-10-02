@@ -184,7 +184,7 @@ def train(args):
             project='klue',
             entity='chungye-mountain-sherpa',
             name=f'{args.model_name}_{args.n_splits}_fold_avg',
-            group='yohan-tokenizer-test/' + args.model_name.split('/')[-1]
+            group=args.model_name.split('/')[-1]
         )
         wandb.log({'fold_avg_eval': sum(val_scores) / args.n_splits})
 
