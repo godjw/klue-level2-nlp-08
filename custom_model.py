@@ -10,19 +10,19 @@ class RobertaEmbeddings(nn.Module):
     """
     
     # Copied from transformers.models.bert.modeling_bert.BertEmbeddings.__init__
-    def __init__(self, config):
+    def __init__(self, model, config):
         super().__init__()
-        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
-        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
-        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        self.word_embeddings = model.roberta.embeddings.word_embeddings
+        self.position_embeddings = model.roberta.embeddings.position_embeddings
+        self.token_type_embeddings = model.roberta.embeddings.token_type_embeddings
         # added by jinseong, entity embedding layer
         self.entity_embeddings = nn.Embedding(9, config.hidden_size, padding_idx=0)
 
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
-        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.LayerNorm = model.roberta.embeddings.LayerNorm
+        self.dropout = model.roberta.embeddings.dropout
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         self.register_buffer("position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)))
@@ -35,9 +35,9 @@ class RobertaEmbeddings(nn.Module):
 
         # End copy
         self.padding_idx = config.pad_token_id
-        self.position_embeddings = nn.Embedding(
-            config.max_position_embeddings, config.hidden_size, padding_idx=self.padding_idx
-        )
+        #self.position_embeddings = nn.Embedding(
+        #    config.max_position_embeddings, config.hidden_size, padding_idx=self.padding_idx
+        #)
 
     def forward(
         self, input_ids=None, token_type_ids=None, position_ids=None, inputs_embeds=None, past_key_values_length=0
@@ -115,6 +115,7 @@ class RobertaEmbeddings(nn.Module):
             s_id = s_ids[i]
             o_id = o_ids[i]
             if i % 2 == 0:
+                #continue # when you only embed sbj and obj
                 entity_ids[s_id[0], s_id[1]+2] = type_map[input_ids[s_id[0], s_id[1]+2].item()]
                 entity_ids[o_id[0], o_id[1]+2] = type_map[input_ids[o_id[0], o_id[1]+2].item()]
             else:

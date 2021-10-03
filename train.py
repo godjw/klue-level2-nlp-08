@@ -109,17 +109,18 @@ def train(args):
             args.model_name, config=model_config)
         # if args.entity_embedding, change embedding layer to customed one
         if args.entity_embedding:
-            custom_embedding = RobertaEmbeddings(config=model_config)
+            custom_embedding = RobertaEmbeddings(model, config=model_config)
             model.roberta.embeddings = custom_embedding
-            model.parameters
+            print(model.roberta.embeddings)
         model.to(device)
 
         if args.disable_wandb == False:
             wandb.init(
                 project='klue',
                 entity='chungye-mountain-sherpa',
-                name=f'{args.model_name}_' +
-                (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
+                name='only entity embedding',
+                #f'{args.model_name}_' +
+                #(f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
                 group='entity_embedding'
             )
 
