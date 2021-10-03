@@ -14,6 +14,7 @@ import wandb
 
 from utils import RelationExtractionDataset, DataHelper, ConfigParser
 from metric import compute_metrics
+from custom_model import RobertaEmbeddings
 import os
 import random
 import numpy as np
@@ -105,6 +106,11 @@ def train(args):
 
         model = AutoModelForSequenceClassification.from_pretrained(
             args.model_name, config=model_config)
+        # if args.entity_embedding, change embedding layer to customed one
+        if args.entity_embedding:
+            custom_embedding = RobertaEmbeddings(config=model_config)
+            model.roberta.embeddings = custom_embedding
+            model.parameters
         model.to(device)
 
         if args.disable_wandb == False:
@@ -113,7 +119,7 @@ def train(args):
                 entity='chungye-mountain-sherpa',
                 name=f'{args.model_name}_' +
                 (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
-                group=args.model_name.split('/')[-1]
+                group='entity_embedding'
             )
 
         if args.eval_strategy == 'epoch':
@@ -126,7 +132,7 @@ def train(args):
                 weight_decay=hp_config['weight_decay'],
                 num_train_epochs=hp_config['epochs'],
                 logging_dir=args.logging_dir,
-                logging_steps=200,
+                logging_steps=100,
                 save_total_limit=2,
                 evaluation_strategy=args.eval_strategy,
                 save_strategy=args.eval_strategy,
@@ -220,6 +226,8 @@ if __name__ == '__main__':
                         default='epoch', choices=['steps', 'epoch'])
     parser.add_argument('--add_ent_token', type=bool, default=True)
     parser.add_argument('--disable_wandb', type=bool, default=False)
+
+    parser.add_argument('--entity_embedding', type=bool, default=True)
 
     args = parser.parse_args()
 
