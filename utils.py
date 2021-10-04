@@ -10,8 +10,6 @@ from sklearn.model_selection import train_test_split, StratifiedKFold
 import pandas as pd
 import numpy as np
 
-from torch.utils.data.dataset import Subset
-
 
 class RelationExtractionDataset(Dataset):
     """
@@ -85,12 +83,13 @@ class DataHelper:
         return tokenized
 
     def _emphasize_entities(self, sent, sub_info, obj_info):
-        sub_s, sub_e = sub_info['start_idx'], sub_info['end_idx'] + 1
-        obj_s, obj_e = obj_info['start_idx'], obj_info['end_idx'] + 1
+        entities = {'PER': '인물',  'ORG': '기관', 'LOC': '지명', 'POH': '기타', 'DAT': '날짜', 'NOH': '수량'}
+        sub_s, sub_e, sub_type = sub_info['start_idx'], sub_info['end_idx'] + 1, sub_info['type']
+        obj_s, obj_e, obj_type = obj_info['start_idx'], obj_info['end_idx'] + 1, obj_info['type']
         if sub_s < obj_s:
-            sent = sent[:sub_s] + '[' + sent[sub_s:sub_e] + ']' + sent[sub_e:obj_s] + '{' + sent[obj_s:obj_e] + '}' + sent[obj_e:]
+            sent = sent[:sub_s] + '#+' + entities[sub_type] + '+' + sent[sub_s:sub_e] + '#' + sent[sub_e:obj_s] + '@^' + entities[obj_type] + '^' + sent[obj_s:obj_e] + '@' + sent[obj_e:]
         else:
-            sent = sent[:obj_s] + '{' + sent[obj_s:obj_e] + '}' + sent[obj_e:sub_s] + '[' + sent[sub_s:sub_e] + ']' + sent[sub_e:]
+            sent = sent[:obj_s] + '@^' + entities[obj_type] + '^' + sent[obj_s:obj_e] + '@' + sent[obj_e:sub_s] + '#+' + entities[sub_type] + '+' + sent[sub_s:sub_e] + '#' + sent[sub_e:]
         return sent
 
     def convert_labels_by_dict(self, labels, dictionary='data/dict_label_to_num.pkl'):

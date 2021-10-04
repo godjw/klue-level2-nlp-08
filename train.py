@@ -70,7 +70,7 @@ def train(args):
                 weight_decay=0.01,
                 num_train_epochs=args.epochs,
                 logging_dir=args.logging_dir,
-                logging_steps=200,
+                logging_steps=100,
                 save_total_limit=2,
                 evaluation_strategy=args.eval_strategy,
                 save_strategy=args.eval_strategy,
@@ -83,18 +83,17 @@ def train(args):
                 per_device_train_batch_size=args.batch_size,
                 per_device_eval_batch_size=args.batch_size,
                 gradient_accumulation_steps=args.grad_accum,
-                learning_rate=5e-05,
+                learning_rate=9e-05,
                 weight_decay=0.01,
                 num_train_epochs=args.epochs,
                 warmup_steps=args.warmup_steps,
                 logging_dir=args.logging_dir,
-                logging_steps=200,
+                logging_steps=100,
                 save_total_limit=2,
                 evaluation_strategy=args.eval_strategy,
-                eval_steps=30,
-                save_steps=30,
+                save_steps=100,
                 load_best_model_at_end=True,
-                metric_for_best_model='micro f1 score',
+                metric_for_best_model='loss',
             )
 
         trainer = Trainer(
@@ -140,7 +139,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
     parser.add_argument('--mode', type=str, default='plain', choices=['plain', 'skf'])
-    parser.add_argument('--split_ratio', type=float, default=0.2)
+    parser.add_argument('--split_ratio', type=float, default=0.1)
     parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--warmup_steps', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=10)
@@ -152,5 +151,5 @@ if __name__ == '__main__':
 
     wandb.login()
 
-    seed_everything(seed=30)
+    seed_everything(41)
     train(args=args)
