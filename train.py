@@ -108,8 +108,16 @@ def train(args):
         model = AutoModelForSequenceClassification.from_pretrained(
             args.model_name, config=model_config)
         # if args.entity_embedding, change embedding layer to customed one
+        if args.embedding_weight_dir:
+            pre_model_state_dict = torch.load(
+            path.join(args.embedding_weight_dir,
+                      f'{k}_fold' if args.mode == 'skf' else args.mode,
+                      'pytorch_model.bin')
+            )
+        else:
+            pre_model_state_dict = None
         if args.entity_embedding:
-            custom_embedding = RobertaEmbeddings(model, config=model_config)
+            custom_embedding = RobertaEmbeddings(model, config=model_config, pre_model_state_dict=pre_model_state_dict)
             model.roberta.embeddings = custom_embedding
             print(model.roberta.embeddings)
         model.to(device)
@@ -118,7 +126,7 @@ def train(args):
             wandb.init(
                 project='klue',
                 entity='chungye-mountain-sherpa',
-                name='only entity embedding',
+                name='with loaded entity embedding weight',
                 #f'{args.model_name}_' +
                 #(f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
                 group='entity_embedding'
@@ -171,7 +179,7 @@ def train(args):
         )
         trainer.train()
         model.save_pretrained(
-            path.join(args.save_dir, f'{k}_fold' if args.mode == 'skf' else args.mode))
+            path.join(args.save_dir, f'{k}_fold' if args.mode == 'skf' else args.mode), state_dict = model.state_dict())
 
         score = evaluate(
             model=model,
@@ -231,6 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('--disable_wandb', type=bool, default=False)
 
     parser.add_argument('--entity_embedding', type=bool, default=True)
+    parser.add_argument('--embedding_weight_dir', type=str, default='./best_model')
 
     args = parser.parse_args()
 

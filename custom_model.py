@@ -10,14 +10,16 @@ class RobertaEmbeddings(nn.Module):
     """
     
     # Copied from transformers.models.bert.modeling_bert.BertEmbeddings.__init__
-    def __init__(self, model, config):
+    def __init__(self, model, config, pre_model_state_dict=None):
         super().__init__()
         self.word_embeddings = model.roberta.embeddings.word_embeddings
         self.position_embeddings = model.roberta.embeddings.position_embeddings
         self.token_type_embeddings = model.roberta.embeddings.token_type_embeddings
+        self.entity_embeddings = nn.Embedding(3, config.hidden_size, padding_idx=0)
         # added by jinseong, entity embedding layer
-        self.entity_embeddings = nn.Embedding(9, config.hidden_size, padding_idx=0)
-
+        if pre_model_state_dict:
+            pre_weight = pre_model_state_dict['roberta.embeddings.entity_embeddings.weight']
+            self.entity_embeddings.weight = torch.nn.parameter.Parameter(pre_weight, requires_grad=True)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
@@ -108,16 +110,16 @@ class RobertaEmbeddings(nn.Module):
         s_ids = torch.nonzero((input_ids == 36)) # subject
         o_ids = torch.nonzero((input_ids == 7)) # object
 
-        type_map = {4410 : 3, 7119 : 4, 3860 : 5, 5867 : 6, 12395 : 7, 9384 : 8}
+        #type_map = {4410 : 3, 7119 : 4, 3860 : 5, 5867 : 6, 12395 : 7, 9384 : 8}
 
         entity_ids = torch.zeros_like(input_ids)
         for i in range(len(s_ids)):
             s_id = s_ids[i]
             o_id = o_ids[i]
             if i % 2 == 0:
-                #continue # when you only embed sbj and obj
-                entity_ids[s_id[0], s_id[1]+2] = type_map[input_ids[s_id[0], s_id[1]+2].item()]
-                entity_ids[o_id[0], o_id[1]+2] = type_map[input_ids[o_id[0], o_id[1]+2].item()]
+                continue # when you only embed sbj and obj
+                #entity_ids[s_id[0], s_id[1]+2] = type_map[input_ids[s_id[0], s_id[1]+2].item()]
+                #entity_ids[o_id[0], o_id[1]+2] = type_map[input_ids[o_id[0], o_id[1]+2].item()]
             else:
                 prev_s_id = s_ids[i-1]
                 prev_o_id = o_ids[i-1]
