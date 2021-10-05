@@ -114,7 +114,7 @@ def train(args):
                 entity='chungye-mountain-sherpa',
                 name=f'{args.model_name}_' +
                 (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
-                group=args.model_name.split('/')[-1]
+                group='kogpt'
             )
 
         if args.eval_strategy == 'epoch':
@@ -127,8 +127,8 @@ def train(args):
                 weight_decay=hp_config['weight_decay'],
                 num_train_epochs=hp_config['epochs'],
                 logging_dir=args.logging_dir,
-                logging_steps=200,
-                save_total_limit=2,
+                logging_steps=40,
+                save_total_limit=0,
                 evaluation_strategy=args.eval_strategy,
                 save_strategy=args.eval_strategy,
                 load_best_model_at_end=True,
@@ -203,7 +203,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--hp_config', type=str,
-                        default='hp_config/roberta_small.json')
+                        default='hp_config/kogpt.json')
 
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
     parser.add_argument('--aug_data_dir', type=str, default='')
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str,
                         default='./best_model')
 
-    parser.add_argument('--model_name', type=str, default='klue/roberta-small')
+    parser.add_argument('--model_name', type=str, default='skt/ko-gpt-trinity-1.2B-v0.5')
     parser.add_argument('--mode', type=str, default='plain',
                         choices=['plain', 'skf'])
     parser.add_argument('--split_ratio', type=float, default=0.1)
