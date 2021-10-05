@@ -1,13 +1,11 @@
-import ast
-import pickle
-
-import torch
-from torch.utils.data import Dataset
-
-from sklearn.model_selection import train_test_split, StratifiedKFold
-import pandas as pd
-import numpy as np
 import json
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split, StratifiedKFold
+from torch.utils.data import Dataset
+import torch
+import pickle
+import ast
 
 
 class ConfigParser():
@@ -43,17 +41,11 @@ class DataHelper:
     A helper class for data loading and processing
     """
 
-<<<<<<< HEAD
-    def __init__(self, data_dir, dictionary_dir):
-        self._raw = pd.read_csv(data_dir)
-        self.dictionary_dir = dictionary_dir
-=======
     def __init__(self, data_dir, mode='train', add_ent_token=False):
         self._data = pd.read_csv(data_dir)
         self._mode = mode
         self.add_ent_token = add_ent_token
         self._preprocess()
->>>>>>> ff38c6721a5eef9af8a87e3a0ddb85bad4064a1e
 
     def _preprocess(self):
         data = self._data
@@ -91,29 +83,6 @@ class DataHelper:
         return (self._processed.iloc[idxs], self._labels[idxs]) if self._mode == 'train' else self._processed
 
     def tokenize(self, data, tokenizer):
-<<<<<<< HEAD
-        concated_entities = [
-            sub + obj for sub, obj in zip(data['subject_entity'], data['object_entity'])
-        ]
-        tokenized = tokenizer(
-            # concated_entities,
-            data['sentence'].tolist(),
-            truncation=True,
-            # return_token_type_ids=False,
-        )
-        return tokenized
-
-    def roberta_tokenize(self, data, tokenizer):
-        concated_entities = [
-            sub + obj for sub, obj in zip(data['subject_entity'], data['object_entity'])
-        ]
-        tokenized = tokenizer(
-            # concated_entities,
-            data['sentence'].tolist(),
-            truncation=True,
-            return_token_type_ids=False,
-        )
-=======
         concated_entities = [sub + '[SEP]' + obj for sub,
                              obj in zip(data['subject_entity'], data['object_entity'])]
         if self.add_ent_token:
@@ -129,44 +98,11 @@ class DataHelper:
                 truncation=True,
                 return_token_type_ids=False,
             )
->>>>>>> ff38c6721a5eef9af8a87e3a0ddb85bad4064a1e
         return tokenized
 
-    def convert_labels_by_dict(self, labels):
-        with open(self.dictionary_dir, 'rb') as f:
+    def convert_labels_by_dict(self, labels, dictionary='data/dict_label_to_num.pkl'):
+        with open(dictionary, 'rb') as f:
             dictionary = pickle.load(f)
-<<<<<<< HEAD
-        return [dictionary[label] for label in labels]
-
-
-class TestDataset(Dataset):
-    """
-    A dataset class for loading Relation Extraction data
-    """
-
-    def __init__(self, pair_dataset, labels):
-        self.labels = labels
-        self.data_inven = self.get_data(pair_dataset)
-
-    def get_data(self, pair_dataset):
-        pd_pair_dataset = pd.DataFrame()
-
-        for key, val in pair_dataset.items():
-            pd_pair_dataset[key] = val
-
-        pd_pair_dataset['labels'] = torch.tensor(self.labels)
-
-        temp_df = pd.DataFrame(pd_pair_dataset)
-        temp_df.reset_index(inplace=True, drop=True)
-
-        return temp_df
-
-    def __getitem__(self, idx):
-        return dict(self.data_inven.iloc[idx])
-
-    def __len__(self):
-        return len(self.data_inven)
-=======
         return np.array([dictionary[label] for label in labels])
 
     def ent_preprocess(self, data):
@@ -197,4 +133,3 @@ class TestDataset(Dataset):
                 '#' + sentence[obj_end_idx + 1:]
 
         return new_sentence
->>>>>>> ff38c6721a5eef9af8a87e3a0ddb85bad4064a1e
