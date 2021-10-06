@@ -158,7 +158,7 @@ def train(args):
 
     val_scores = []
 
-    pd_train = pd.read_csv('data/train_10.csv')
+    pd_train = pd.read_csv('data/yohai_target_augmented.csv')
     pd_valid = pd.read_csv('data/valid_10.csv')
 
     if args.aug_data_dir:
