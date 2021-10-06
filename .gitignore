@@ -20,3 +20,5 @@ best_model/
 results/
 prediction/
 klue-roberta-retrained/
+klue-bert-mlm/
+papago-translator/
