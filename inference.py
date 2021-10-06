@@ -72,7 +72,7 @@ def inference(args):
             'probs': pred_probs
         })
         output.to_csv(
-            path.join(args.output_dir, (f'{k}_fold' if args.mode ==
+            path.join(args.output_dir, (f'{k}_fold_nr_augment' if args.mode ==
                       'skf' else args.mode) + '_submission.csv'),
             index=False
         )
@@ -90,7 +90,7 @@ def inference(args):
             'probs': probs.tolist()
         })
         output.to_csv(path.join(args.output_dir,
-                      f'{args.n_splits}_folds_submission.csv'), index=False)
+                      f'{args.n_splits}_folds_nr_augment_submission.csv'), index=False)
 
     print('Inference done')
 

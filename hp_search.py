@@ -19,7 +19,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 tokenizer = AutoTokenizer.from_pretrained('klue/roberta-large')
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-helper = DataHelper(data_dir='data/train.csv')
+helper = DataHelper(data_dir='data/cleaned_target_augmented.csv')
 train_idxs, val_idxs = helper.split(ratio=0.1, n_splits=5, mode='plain')[0]
 train_data, train_labels = helper.from_idxs(idxs=train_idxs)
 val_data, val_labels = helper.from_idxs(idxs=val_idxs)
@@ -104,10 +104,9 @@ trainer = MyTrainer(
 def my_hp_space(trial):
     return {
         "learning_rate": trial.suggest_float("learning_rate", 1e-6, 1e-4, log=True),
-        "seed": trial.suggest_int("seed", 1, 42),
-        "num_train_epochs": trial.suggest_int("num_train_epochs", 3, 4),
+        "num_train_epochs": trial.suggest_int("num_train_epochs", 3, 4, 5),
         "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [4, 8, 16, 24, 32]),
-        "weight_decay": trial.suggest_float("weight_decay", 0, 0.3),
+        "weight_decay": trial.suggest_float("weight_decay", 0, 0.1),
         "gradient_accumulation_steps": trial.suggest_categorical("gradient_accumulation_steps", [2, 4, 8, 16, 32])
     }
 
