@@ -14,6 +14,8 @@ import wandb
 
 from utils import RelationExtractionDataset, DataHelper, ConfigParser
 from metric import compute_metrics
+from GetModel import GetModel
+
 import os
 import random
 import numpy as np
@@ -42,31 +44,31 @@ class MyTrainer(Trainer):
         super().__init__(*args, **kwargs)
 
     def compute_loss(self, model, inputs, return_outputs=False):
-        if self.label_smoother is not None and "labels" in inputs:
-            labels = inputs.pop("labels")
-        else:
-            labels = None
-        loss_fct = WeightedFocalLoss()
-        outputs = model(**inputs)
-        if labels is not None:
-            loss = loss_fct(outputs[0], labels)
-        else:
-            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-        return (loss, outputs) if return_outputs else loss
+        labels = inputs.pop("labels")
+        outputs = model(inputs['input_ids'], inputs['attention_mask'])
+        ce_loss = nn.CrossEntropyLoss(reduction='none') # try giving more weight to no_relation
 
+        loss = ce_loss(outputs, labels)
+        return (loss, outputs) if return_outputs else loss.mean()
 
 def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
+    print(1)
     metric = load_metric(eval_method)
+    print(2)
     dataloader = DataLoader(
         val_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
-
+    print(3)
     model.eval()
+    print(4)
     for data in tqdm(dataloader):
         data = {key: value.to(device) for key, value in data.items()}
         with torch.no_grad():
             outputs = model(**data)
+        print(5)
         preds = torch.argmax(outputs.logits, dim=-1)
+        print(6)
         metric.add_batch(predictions=preds, references=data['labels'])
+        print(7)
     model.train()
 
     return metric.compute(average='micro')[eval_method]
@@ -104,8 +106,12 @@ def train(args):
             train_data, labels=train_labels)
         val_dataset = RelationExtractionDataset(val_data, labels=val_labels)
 
-        model = AutoModelForSequenceClassification.from_pretrained(
-            args.model_name, config=model_config)
+        if args.new_hat == False:
+            model = AutoModelForSequenceClassification.from_pretrained(
+                args.model_name, config=model_config)
+        else:
+            model = GetModel()
+
         model.to(device)
 
         if args.disable_wandb == False:
@@ -132,7 +138,9 @@ def train(args):
                 evaluation_strategy=args.eval_strategy,
                 save_strategy=args.eval_strategy,
                 load_best_model_at_end=True,
-                metric_for_best_model='micro f1 score'
+                metric_for_best_model='micro f1 score',
+                fp16=True,
+                fp16_opt_level='O1'
             )
         elif args.eval_strategy == 'steps':
             training_args = TrainingArguments(
@@ -151,6 +159,8 @@ def train(args):
                 save_steps=200,
                 load_best_model_at_end=True,
                 metric_for_best_model='micro f1 score',
+                fp16=True,
+                fp16_opt_level='O1'
             )
 
         # trainer = Trainer(
@@ -166,6 +176,7 @@ def train(args):
         model.save_pretrained(
             path.join(args.save_dir, f'{k}_fold' if args.mode == 'skf' else args.mode))
 
+        
         score = evaluate(
             model=model,
             val_dataset=val_dataset,
@@ -221,7 +232,8 @@ if __name__ == '__main__':
     parser.add_argument('--eval_strategy', type=str,
                         default='epoch', choices=['steps', 'epoch'])
     parser.add_argument('--add_ent_token', type=bool, default=True)
-    parser.add_argument('--disable_wandb', type=bool, default=False)
+    parser.add_argument('--disable_wandb', type=bool, default=True)
+    parser.add_argument('--new_hat', type=bool, default=False, choices=[True,False])
 
     args = parser.parse_args()
 
