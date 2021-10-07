@@ -12,6 +12,7 @@ import wandb
 
 from utils import DataHelper, RelationExtractionDataset, seed_everything
 from metric import compute_metrics
+from trainer import LDAMLossTrainer
 
 
 def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
@@ -83,20 +84,22 @@ def train(args):
                 per_device_train_batch_size=args.batch_size,
                 per_device_eval_batch_size=args.batch_size,
                 gradient_accumulation_steps=args.grad_accum,
-                learning_rate=9e-05,
+                learning_rate=5e-05,
                 weight_decay=0.01,
+                fp16=True,
+                fp16_opt_level='O1',
                 num_train_epochs=args.epochs,
                 warmup_steps=args.warmup_steps,
                 logging_dir=args.logging_dir,
-                logging_steps=100,
-                save_total_limit=2,
+                logging_steps=144,
+                save_total_limit=1,
                 evaluation_strategy=args.eval_strategy,
-                save_steps=100,
+                save_steps=144,
                 load_best_model_at_end=True,
-                metric_for_best_model='loss',
+                metric_for_best_model='auprc'
             )
 
-        trainer = Trainer(
+        trainer = LDAMLossTrainer(
             model=model,
             args=training_args,
             train_dataset=train_dataset,
@@ -142,7 +145,7 @@ if __name__ == '__main__':
     parser.add_argument('--split_ratio', type=float, default=0.1)
     parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--warmup_steps', type=int, default=0)
-    parser.add_argument('--epochs', type=int, default=10)
+    parser.add_argument('--epochs', type=float, default=10)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--grad_accum', type=int, default=1)
     parser.add_argument('--eval_strategy', type=str, default='steps', choices=['steps', 'epoch'])
@@ -151,5 +154,5 @@ if __name__ == '__main__':
 
     wandb.login()
 
-    seed_everything(41)
+    seed_everything(23)
     train(args=args)
