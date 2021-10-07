@@ -3,13 +3,62 @@ import pprint
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+import random
+
+SPACE_TOKEN = "\u241F"
+
+
+def replace_space(text: str) -> str:
+    return text.replace(" ", SPACE_TOKEN)
+
+
+def revert_space(text: list) -> str:
+    clean = " ".join("".join(text).replace(SPACE_TOKEN, " ").split()).strip()
+    return clean
+
+
+class myAEDA(AEDA):
+    def _aeda(self, data: str, p: float) -> str:
+        if p is None:
+            p = self.ratio
+
+        split_words = self.morpheme_analyzer.morphs(replace_space(data))
+        words = self.morpheme_analyzer.morphs(data)
+
+        new_words = []
+        q = random.randint(1, int(p * len(words) + 1))
+        qs_list = [
+            index
+            for index in range(len(split_words))
+            if split_words[index] != SPACE_TOKEN
+        ]
+        if len(qs_list) < q:
+            q = len(qs_list)
+        qs = random.sample(qs_list, q)
+
+        for j, word in enumerate(split_words):
+            if j in qs:
+                new_words.append(SPACE_TOKEN)
+                new_words.append(
+                    self.punctuations[random.randint(
+                        0, len(self.punctuations) - 1)]
+                )
+                new_words.append(SPACE_TOKEN)
+                new_words.append(word)
+            else:
+                new_words.append(word)
+
+        augmented_sentences = revert_space(new_words)
+
+        return augmented_sentences
+
 
 TRAIN_DATA_PATH = "data/train.csv"
 pd_train = pd.read_csv(TRAIN_DATA_PATH)
 
 pp = pprint.PrettyPrinter()
 
-aeda = AEDA(
+aeda = myAEDA(
     morpheme_analyzer="Mecab", punc_ratio=0.3, punctuations=[".", ",", "!", "?", ";", ":"]
 )
 
