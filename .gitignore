@@ -3,6 +3,7 @@ __pycache__
 
 # Checkpoints
 results/
+best_model_lstm_roberta/
 
 # wandb
 wandb/
@@ -17,3 +18,8 @@ wandb/
 best_model/
 results/
 prediction/
+
+tmp/
+sota_focal/
+c_t/
+compare.ipynb
