@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.metrics import accuracy_score, auc, precision_recall_curve, f1_score
+from sklearn.metrics import accuracy_score, auc, precision_recall_curve, f1_score, precision_score, recall_score
 
 
 def klue_re_micro_f1(preds, labels):
@@ -24,6 +24,54 @@ def klue_re_micro_f1(preds, labels):
     label_indices = list(range(len(label_list)))
     label_indices.remove(no_relation_label_idx)
     return f1_score(labels, preds, average="micro", labels=label_indices) * 100.0
+
+
+def klue_re_micro_precision(preds, labels):
+    """
+    KLUE-RE micro precision(without no_relation)
+    """
+
+    label_list = [
+        'no_relation', 'org:top_members/employees', 'org:members',
+        'org:product', 'per:title', 'org:alternate_names',
+        'per:employee_of', 'org:place_of_headquarters', 'per:product',
+        'org:number_of_employees/members', 'per:children',
+        'per:place_of_residence', 'per:alternate_names',
+        'per:other_family', 'per:colleagues', 'per:origin', 'per:siblings',
+        'per:spouse', 'org:founded', 'org:political/religious_affiliation',
+        'org:member_of', 'per:parents', 'org:dissolved',
+        'per:schools_attended', 'per:date_of_death', 'per:date_of_birth',
+        'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
+        'per:religion'
+    ]
+    no_relation_label_idx = label_list.index("no_relation")
+    label_indices = list(range(len(label_list)))
+    label_indices.remove(no_relation_label_idx)
+    return precision_score(labels, preds, average="micro", labels=label_indices) * 100.0
+
+
+def klue_re_micro_recall(preds, labels):
+    """
+    KLUE-RE micro recall (without no_relation)
+    """
+
+    label_list = [
+        'no_relation', 'org:top_members/employees', 'org:members',
+        'org:product', 'per:title', 'org:alternate_names',
+        'per:employee_of', 'org:place_of_headquarters', 'per:product',
+        'org:number_of_employees/members', 'per:children',
+        'per:place_of_residence', 'per:alternate_names',
+        'per:other_family', 'per:colleagues', 'per:origin', 'per:siblings',
+        'per:spouse', 'org:founded', 'org:political/religious_affiliation',
+        'org:member_of', 'per:parents', 'org:dissolved',
+        'per:schools_attended', 'per:date_of_death', 'per:date_of_birth',
+        'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
+        'per:religion'
+    ]
+    no_relation_label_idx = label_list.index("no_relation")
+    label_indices = list(range(len(label_list)))
+    label_indices.remove(no_relation_label_idx)
+    return recall_score(labels, preds, average="micro", labels=label_indices) * 100.0
 
 
 def klue_re_auprc(probs, labels):
@@ -52,6 +100,8 @@ def compute_metrics(pred):
     probs = pred.predictions
 
     f1 = klue_re_micro_f1(preds, labels)
+    precision = klue_re_micro_precision(preds, labels)
+    recall = klue_re_micro_recall(preds, labels)
     auprc = klue_re_auprc(probs, labels)
     acc = accuracy_score(labels, preds)
 
@@ -59,4 +109,6 @@ def compute_metrics(pred):
         'micro f1 score': f1,
         'auprc': auprc,
         'accuracy': acc,
+        'recall': recall,
+        'precision': precision
     }
