@@ -1,7 +1,7 @@
 from transformers import TrainingArguments
 
 
-def init_tarining_arguments(evaluation_strategy, training_arguments_config, hyperparameter_config):
+def init_training_arguments(evaluation_strategy, training_arguments_config, hyperparameter_config):
     if evaluation_strategy == 'epoch':
         training_args = init_epoch_training_arguments(
             training_arguments_config, hyperparameter_config)

@@ -10,7 +10,7 @@ from datasets.load import load_metric
 from tqdm import tqdm
 import wandb
 
-from trainer import MyTrainer, init_tarining_arguments
+from trainer import MyTrainer, init_training_arguments
 from utils import RelationExtractionDataset, DataHelper, FixedDataHelper, ConfigParser
 from model.metric import compute_metrics
 import os
@@ -83,7 +83,7 @@ def train_loop_using_fixed_dataset(config, mode='plain', evaluation_strategy='ep
             group=wandb_config['group']
         )
 
-    training_args = init_tarining_arguments(
+    training_args = init_training_arguments(
         evaluation_strategy, training_arguments_config, hyperparameter_config)
 
     trainer = MyTrainer(
@@ -160,7 +160,7 @@ def train_loop(config, mode='plain', evaluation_strategy='epoch', disable_wandb=
                 group=wandb_config['group']
             )
 
-        training_args = init_tarining_arguments(
+        training_args = init_training_arguments(
             evaluation_strategy, training_arguments_config, hyperparameter_config)
 
         trainer = MyTrainer(
