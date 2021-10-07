@@ -46,9 +46,11 @@ class MyTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.pop("labels")
         outputs = model(inputs['input_ids'], inputs['attention_mask'])
-        ce_loss = nn.CrossEntropyLoss(reduction='none') # try giving more weight to no_relation
+        # try giving more weight to no_relation
+        ce_loss = nn.CrossEntropyLoss(reduction='none')
         loss = ce_loss(outputs.get('logits'), labels)
         return (loss, outputs) if return_outputs else loss.mean()
+
 
 def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
     metric = load_metric(eval_method)
@@ -88,11 +90,11 @@ def train(args):
                         add_ent_token=args.add_ent_token,
                         aug_data_dir=args.aug_data_dir)
     for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=args.split_ratio, n_splits=args.n_splits, mode=args.mode, random_seed=hp_config['seed'])):
-        #### 여기 숫자 수정해주세요!
-        ### 준영님 2
-        ### 진성님 3
-        ### 하겸님 4
-        if k != 0:
+        # 여기 숫자 수정해주세요!
+        # 준영님 2
+        # 진성님 3
+        # 하겸님 4
+        if k != 4:
             continue
         ####
 
@@ -176,7 +178,6 @@ def train(args):
         model.save_pretrained(
             path.join(args.save_dir, f'{k}_fold' if args.mode == 'skf' else args.mode))
 
-        
         score = evaluate(
             model=model,
             val_dataset=val_dataset,
@@ -216,7 +217,8 @@ if __name__ == '__main__':
     parser.add_argument('--hp_config', type=str,
                         default='hp_config/roberta_large_focal_loss.json')
 
-    parser.add_argument('--data_dir', type=str, default='data/cleaned_target_augmented.csv')
+    parser.add_argument('--data_dir', type=str,
+                        default='data/cleaned_target_augmented.csv')
     parser.add_argument('--aug_data_dir', type=str, default='')
     parser.add_argument('--output_dir', type=str,
                         default='./results')
@@ -233,7 +235,8 @@ if __name__ == '__main__':
                         default='epoch', choices=['steps', 'epoch'])
     parser.add_argument('--add_ent_token', type=bool, default=True)
     parser.add_argument('--disable_wandb', type=bool, default=False)
-    parser.add_argument('--new_hat', type=bool, default=False, choices=[True,False])
+    parser.add_argument('--new_hat', type=bool,
+                        default=False, choices=[True, False])
 
     args = parser.parse_args()
 

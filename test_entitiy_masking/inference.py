@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from transformers import AutoConfig, AutoTokenizer
+from transformers import AutoConfig, AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
 from custom_model import RBERT
 import pandas as pd
 from tqdm import tqdm
@@ -14,19 +14,17 @@ from tqdm import tqdm
 from utils import *
 
 
-def infer(model, test_dataset, batch_size, device):
+def infer(model, test_dataset, batch_size, collate_fn, device):
     dataloader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False)
+        test_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
     preds, probs = [], []
     model.eval()
     for data in tqdm(dataloader):
-        #batch = {k: v.to(device) for k, v in data.items()}
-        # print(torch.tensor(data['e1_mask']))
         with torch.no_grad():
-            outputs = model(input_ids=data['input_ids'].to(device),
-                            attention_mask=data['attention_mask'].to(device),
-                            e1_mask=data['e1_mask'].to(device),
-                            e2_mask=data['e2_mask'].to(device))
+            outputs = model(
+                input_ids=data['input_ids'].to(device),
+                attention_mask=data['attention_mask'].to(device)
+            )
         logits = outputs[0]
         result = torch.argmax(logits, dim=-1)
         prob = F.softmax(logits, dim=-1)
@@ -41,31 +39,32 @@ def inference(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     helper = DataHelper(data_dir=args.data_dir,
                         mode='inference')
     _test_data = helper.from_idxs()
-    test_data = helper.entity_tokenize(
-        data=_test_data, tokenizer=tokenizer)
+    test_data = helper.tokenize(_test_data, tokenizer)
     test_dataset = RelationExtractionDataset(test_data)
 
     probs = []
 
     for k in range(args.n_splits if args.mode == 'skf' else 1):
-        model_config = AutoConfig.from_pretrained(
-            args.model_name, num_labels=30)
-        model = RBERT(model_name=args.model_name,
-                      config=model_config, dropout_rate=0.1)
-        model = model.from_pretrained(
-            path.join(args.model_dir,
-                      f'{k}_fold' if args.mode == 'skf' else args.mode), config=model_config, model_name=args.model_name, dropout_rate=0.1)
 
+        # model = AutoModelForSequenceClassification.from_pretrained(
+        #     path.join(args.model_dir,
+        #               f'{k}_fold' if args.mode == 'skf' else args.mode)
+        # )
+        model = AutoModelForSequenceClassification.from_pretrained()
         model.to(device)
+        # print(model)
+        # model.bert.resize_token_embeddings(len(tokenizer))
 
         pred_labels, pred_probs = infer(
             model=model,
             test_dataset=test_dataset,
             batch_size=args.batch_size,
+            collate_fn=data_collator,
             device=device
         )
         pred_labels = helper.convert_labels_by_dict(
@@ -107,14 +106,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--data_dir', type=str,
-                        default='/opt/ml/dataset/test/preprocess_test.csv')
+                        default='/opt/ml/dataset/test/test_data.csv')
     parser.add_argument('--dictionary', type=str,
                         default='/opt/ml/klue-level2-nlp-08/test_entitiy_masking/data/dict_num_to_label.pkl')
     parser.add_argument('--output_dir', type=str, default='./prediction')
-    parser.add_argument('--model_dir', type=str, default='./best_model')
+    parser.add_argument('--model_dir', type=str,
+                        default='/opt/ml/klue-level2-nlp-08_origin/best_model/4_fold')
 
-    parser.add_argument('--model_name', type=str, default='klue/roberta-large')
-    parser.add_argument('--mode', type=str, default='skf',
+    parser.add_argument('--model_name', type=str, default='klue/bert-base')
+    parser.add_argument('--mode', type=str, default='plain',
                         choices=['plain', 'skf'])
     parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=64)

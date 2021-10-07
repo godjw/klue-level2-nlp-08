@@ -54,9 +54,12 @@ def inference(args):
                       f'{k}_fold' if args.mode == 'skf' else args.mode)
         )
         '''
+        if k != 4:
+            continue
+        ####
         model = GetModel.from_pretrained(path.join(args.model_dir,
-                      f'{k}_fold' if args.mode == 'skf' else args.mode)
-        )
+                                                   f'{k}_fold' if args.mode == 'skf' else args.mode)
+                                         )
 
         model.to(device)
 
@@ -109,10 +112,11 @@ if __name__ == '__main__':
     parser.add_argument('--dictionary', type=str,
                         default='data/dict_num_to_label.pkl')
     parser.add_argument('--output_dir', type=str, default='./prediction')
-    parser.add_argument('--model_dir', type=str, default='./best_model')
+    parser.add_argument('--model_dir', type=str,
+                        default='/opt/ml/klue-level2-nlp-08_origin/best_model')
 
     parser.add_argument('--model_name', type=str, default='klue/bert-base')
-    parser.add_argument('--mode', type=str, default='plain',
+    parser.add_argument('--mode', type=str, default='skf',
                         choices=['plain', 'skf'])
     parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=64)

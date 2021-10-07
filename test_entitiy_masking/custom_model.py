@@ -20,21 +20,24 @@ class FCLayer(nn.Module):
 
 
 class RBERT(RobertaPreTrainedModel):
-    def __init__(self, config, model_name, dropout_rate):
+    def __init__(self, config, model_name):
         super(RBERT, self).__init__(config)
         self.bert = RobertaModel.from_pretrained(
             model_name)  # Load pretrained bert
 
+        # for param in self.bert.parameters():
+        #     param.requires_grad = False
+
         self.num_labels = config.num_labels
 
         self.cls_fc_layer = FCLayer(
-            config.hidden_size, config.hidden_size, dropout_rate)
+            config.hidden_size, config.hidden_size, 0.1)
         self.entity_fc_layer = FCLayer(
-            config.hidden_size, config.hidden_size, dropout_rate)
+            config.hidden_size, config.hidden_size, 0.1)
         self.label_classifier = FCLayer(
             config.hidden_size * 3,
             config.num_labels,
-            dropout_rate,
+            0.1,
             use_activation=False,
         )
 

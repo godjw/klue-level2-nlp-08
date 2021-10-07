@@ -97,7 +97,7 @@ class DataHelper:
                 concated_entities,
                 data['sentence'].tolist(),
                 truncation=True,
-                padding=True,
+                # padding=True,
                 return_token_type_ids=False,
             )
         return tokenized
@@ -177,6 +177,114 @@ class DataHelper:
                     break
             e1_mask_list.append(e1_mask)
             e2_mask_list.append(e2_mask)
+        tokenized['e1_mask'] = torch.LongTensor(e1_mask_list)
+        tokenized['e2_mask'] = torch.LongTensor(e2_mask_list)
+
+        return tokenized
+
+    def row_entity_tokenize(self, row_data, entity_data, tokenizer):
+        concated_entities = [sub + '[SEP]' + obj for sub,
+                             obj in zip(row_data['subject_entity'], row_data['object_entity'])]
+        tokenizer.add_special_tokens(
+            {"additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]})
+
+        sub_start = tokenizer.vocab["<e1>"]
+        sub_end = tokenizer.vocab["</e1>"]
+        obj_start = tokenizer.vocab["<e2>"]
+        obj_end = tokenizer.vocab["</e2>"]
+
+        tokenized = tokenizer(
+            row_data['sentence'].tolist(),
+            concated_entities,
+            padding=True,
+            truncation=True,
+            return_token_type_ids=False,
+            return_tensors="pt"
+        )
+
+        temp_tokenized = tokenizer(
+            entity_data['sentence'].tolist(),
+            concated_entities,
+            padding=True,
+            truncation=True,
+            # return_tensors="pt",
+            return_token_type_ids=False,
+        )
+        e1_mask_list = []
+        e2_mask_list = []
+        for i in range(len(temp_tokenized['input_ids'])):
+            token_len = len(temp_tokenized['input_ids'][i])
+            e1_mask = [0] * token_len
+            e2_mask = [0] * token_len
+            sub_start_idx = temp_tokenized['input_ids'][i].index(sub_start)
+            sub_end_idx = temp_tokenized['input_ids'][i].index(sub_end)
+            obj_start_idx = temp_tokenized['input_ids'][i].index(obj_start)
+            obj_end_idx = temp_tokenized['input_ids'][i].index(obj_end)
+
+            for idx in range(sub_start_idx + 1, sub_end_idx):
+                e1_mask[idx] = 1
+
+            for idx in range(obj_start_idx + 1, obj_end_idx):
+                e2_mask[idx] = 1
+
+            pop_idx = [sub_start_idx, sub_end_idx, obj_start_idx, obj_end_idx]
+            pop_idx.sort(reverse=True)
+            for idx in pop_idx:
+                e1_mask.pop(idx)
+                e2_mask.pop(idx)
+
+            e1_mask_list.append(e1_mask)
+            e2_mask_list.append(e2_mask)
+
+        tokenized['e1_mask'] = torch.LongTensor(e1_mask_list)
+        tokenized['e2_mask'] = torch.LongTensor(e2_mask_list)
+
+        return tokenized
+
+    def row_entity_tokenize2(self, entity_data, tokenizer):
+        tokenizer.add_special_tokens(
+            {"additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]})
+
+        sub_start = tokenizer.vocab["<e1>"]
+        sub_end = tokenizer.vocab["</e1>"]
+        obj_start = tokenizer.vocab["<e2>"]
+        obj_end = tokenizer.vocab["</e2>"]
+
+        tokenized = tokenizer(
+            entity_data['sentence'].tolist(),
+            padding=True,
+            truncation=True,
+            return_token_type_ids=False,
+            return_tensors="pt"
+        )
+
+        temp_tokenized = tokenizer(
+            entity_data['sentence'].tolist(),
+            padding=True,
+            truncation=True,
+            # return_tensors="pt",
+            return_token_type_ids=False,
+        )
+        e1_mask_list = []
+        e2_mask_list = []
+        for i in range(len(temp_tokenized['input_ids'])):
+            token_len = len(temp_tokenized['input_ids'][i])
+            e1_mask = [0] * token_len
+            e2_mask = [0] * token_len
+            sub_start_idx = temp_tokenized['input_ids'][i].index(sub_start)
+            sub_end_idx = temp_tokenized['input_ids'][i].index(sub_end)
+            obj_start_idx = temp_tokenized['input_ids'][i].index(obj_start)
+            obj_end_idx = temp_tokenized['input_ids'][i].index(obj_end)
+
+            for idx in range(sub_start_idx, sub_end_idx+1):
+                e1_mask[idx] = 1
+
+            for idx in range(obj_start_idx, obj_end_idx+1):
+                e2_mask[idx] = 1
+
+            e1_mask_list.append(e1_mask)
+            e2_mask_list.append(e2_mask)
+
         tokenized['e1_mask'] = torch.LongTensor(e1_mask_list)
         tokenized['e2_mask'] = torch.LongTensor(e2_mask_list)
 

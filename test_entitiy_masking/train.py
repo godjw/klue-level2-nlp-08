@@ -6,7 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from transformers import AutoConfig, AutoTokenizer, DataCollatorWithPadding, Trainer, TrainingArguments, EarlyStoppingCallback
+from transformers import AutoConfig, AutoTokenizer, DataCollatorWithPadding, Trainer, TrainingArguments, EarlyStoppingCallback, AutoModelForSequenceClassification
 from datasets.load import load_metric
 
 from tqdm import tqdm
@@ -17,6 +17,8 @@ from metric import compute_metrics
 import os
 import random
 import numpy as np
+import pandas as pd
+from loss_func import *
 
 from custom_model import RBERT
 
@@ -38,6 +40,27 @@ def evaluate(model, val_dataset, batch_size, device, eval_method='f1'):
     return metric.compute(average='micro')[eval_method]
 
 
+class MyTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        labels = inputs.get("labels")
+        outputs = model(**inputs)
+        logits = outputs.get('logits')
+
+        loss_type = "focal"
+        beta = 0.9999
+        gamma = 2.0
+
+        criterion = CB_loss(beta, gamma)
+        if torch.cuda.is_available():
+            criterion.cuda()
+        loss_fct = criterion(logits, labels, loss_type)
+
+        return (loss_fct, outputs) if return_outputs else loss_fct
+
+
 def train(args):
     hp_config = ConfigParser(config=args.hp_config).config
     seed_everything(hp_config['seed'])
@@ -57,27 +80,64 @@ def train(args):
     val_scores = []
     helper = DataHelper(data_dir=args.data_dir,
                         add_ent_token=args.add_ent_token)
+    # 추가
+    #entity_data = pd.read_csv('/opt/ml/dataset/train/entity_train.csv')
+    #feature = entity_data.columns
+    ###
+    all_data = pd.read_csv(args.data_dir)
+    aug_data = pd.read_csv('/opt/ml/dataset/train/aug_all.csv')
 
     for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=args.split_ratio, n_splits=args.n_splits, mode=args.mode, random_seed=hp_config['seed'])):
-        train_data, train_labels = helper.from_idxs(idxs=train_idxs)
-        val_data, val_labels = helper.from_idxs(idxs=val_idxs)
+        #train_data, train_labels = helper.from_idxs(idxs=train_idxs)
+        train_data = all_data.iloc[train_idxs]
+        ###
+        #train_entity = entity_data[feature].iloc[train_idxs]
+        ###
+        #val_data, val_labels = helper.from_idxs(idxs=val_idxs)
+        val_data = all_data.iloc[val_idxs]
+        val_labels = helper.convert_labels_by_dict(val_data['label'])
+        ###
+        #val_entity = entity_data[feature].iloc[val_idxs]
+        ###
+        train_data = pd.concat([train_data, aug_data])
+        train_labels = helper.convert_labels_by_dict(train_data['label'])
 
-        train_data = helper.entity_tokenize(train_data, tokenizer=tokenizer)
-        val_data = helper.entity_tokenize(val_data, tokenizer=tokenizer)
+        print(len(all_data))
+        print(len(train_data))
+        print(len(val_data))
+
+        train_data = helper.tokenize(
+            train_data, tokenizer=tokenizer)
+        val_data = helper.tokenize(
+            val_data, tokenizer=tokenizer)
 
         train_dataset = RelationExtractionDataset(
             train_data, labels=train_labels)
         val_dataset = RelationExtractionDataset(val_data, labels=val_labels)
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.model_name, config=model_config)
 ####
-        model = RBERT(model_name=args.model_name,
-                      config=model_config, dropout_rate=0.1)
+        # model.bert.resize_token_embeddings(len(tokenizer))
+
+        # for param in model.parameters():
+        #     param.requires_grad = False
+
+        # for param in model.classifier.parameters():
+        #     param.requires_grad = True
+
+        # for param in model.roberta.encoder.layer[-1].parameters():
+        #     param.requires_grad = True
+        # for param in model.roberta.encoder.layer[-2].parameters():
+        #     param.requires_grad = True
+
         model.to(device)
 
         if args.disable_wandb == False:
             wandb.init(
                 project='klue',
                 entity='chungye-mountain-sherpa',
-                name=f'{args.model_name}_hk_' +
+                name=f'{args.model_name}_hk_freeze' +
                 (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
                 group='entity_embedding'
             )
@@ -110,11 +170,11 @@ def train(args):
                 weight_decay=hp_config['weight_decay'],
                 num_train_epochs=hp_config['epochs'],
                 logging_dir=args.logging_dir,
-                logging_steps=50,
+                logging_steps=200,
                 save_total_limit=2,
                 evaluation_strategy=args.eval_strategy,
-                eval_steps=50,
-                save_steps=50,
+                eval_steps=200,
+                save_steps=200,
                 # dataloader_num_workers=4,
                 load_best_model_at_end=True,
                 fp16=True,
@@ -123,12 +183,13 @@ def train(args):
             )
 
         # trainer = Trainer(
-        trainer = Trainer(
+        trainer = MyTrainer(
             model=model,
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             compute_metrics=compute_metrics,
+            data_collator=DataCollatorWithPadding(tokenizer),
             callbacks=[EarlyStoppingCallback(early_stopping_patience=4)]
         )
         trainer.train()
@@ -174,7 +235,7 @@ if __name__ == '__main__':
                         default='hp_config/roberta_large_entity.json')
 
     parser.add_argument('--data_dir', type=str,
-                        default='/opt/ml/dataset/train/preprocess_train.csv')
+                        default='/opt/ml/dataset/train/train.csv')
     parser.add_argument('--output_dir', type=str,
                         default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
