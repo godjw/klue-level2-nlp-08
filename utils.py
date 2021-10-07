@@ -138,3 +138,37 @@ class DataHelper:
                 '#' + sentence[obj_end_idx + 1:]
 
         return new_sentence
+
+
+class FixedDataHelper(DataHelper):
+    def __init__(self, train_data_dir, valid_data_dir, mode='train', add_ent_token=False, aug_data_dir=''):
+        _train_data = pd.read_csv(train_data_dir)
+        _valid_data = pd.read_csv(valid_data_dir)
+
+        if aug_data_dir:
+            _aug_data = pd.read_csv(aug_data_dir)
+            _train_data = pd.concat([_train_data, _aug_data])
+
+        self._mode = mode
+        self.add_ent_token = add_ent_token
+        self.train_data, self.train_labels = self._preprocess(_train_data)
+        self.valid_data, self.valid_labels = self._preprocess(_valid_data)
+
+    def _preprocess(self, data):
+        if self.add_ent_token:
+            data = self.ent_preprocess(data)
+
+        def extract(d): return ast.literal_eval(d)['word']
+
+        subjects = list(map(extract, data['subject_entity']))
+        objects = list(map(extract, data['object_entity']))
+
+        _processed = pd.DataFrame({
+            'id': data['id'],
+            'sentence': data['sentence'],
+            'subject_entity': subjects,
+            'object_entity': objects,
+        })
+        if self._mode == 'train':
+            _labels = self.convert_labels_by_dict(labels=data['label'])
+        return _processed, _labels
