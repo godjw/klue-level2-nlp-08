@@ -6,7 +6,6 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from custom_model import RobertaEmbeddings
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 from datasets.load import load_metric
 
@@ -16,7 +15,7 @@ from transformers.models.roberta.modeling_roberta import RobertaPreTrainedModel
 import wandb
 
 from utils import RelationExtractionDataset, DataHelper, ConfigParser
-from metric import compute_metrics
+from model.metric import compute_metrics
 import os
 import random
 import numpy as np
@@ -250,27 +249,27 @@ class SplitModels(nn.Module):
 
         c1 = AutoConfig.from_pretrained('klue/roberta-large', num_labels=2)
         c2 = AutoConfig.from_pretrained('klue/roberta-large', num_labels=29)
-        # c3 = AutoConfig.from_pretrained('klue/roberta-large', num_labels=30)
+        c3 = AutoConfig.from_pretrained('klue/roberta-large', num_labels=30)
         self.roberta1 = AutoModelForSequenceClassification.from_pretrained(
-            "split_model_no_rel_large/0_fold", config=c1)
+            "split_model_no_rel_large/4_fold", config=c1)
         self.roberta2 = AutoModelForSequenceClassification.from_pretrained(
-            "split_model_rel_large/0_fold", config=c2)
-        # self.roberta3 = AutoModelForSequenceClassification.from_pretrained(
-        #     "sota_focal_loss_kfold_model/0_fold", config=c3)
+            "split_model_rel_large/4_fold", config=c2)
+        self.roberta3 = AutoModelForSequenceClassification.from_pretrained(
+            "sota_focal/4_fold", config=c3)
         for p in self.roberta1.parameters():
             p.requires_grad = False
         for p in self.roberta2.parameters():
             p.requires_grad = False
-        # for p in self.roberta3.parameters():
-        #     p.requires_grad = False
+        for p in self.roberta3.parameters():
+            p.requires_grad = False
         self.fc1 = nn.Linear(2, 768)
         self.fc2 = nn.Linear(29, 768)
-        # self.fc3 = nn.Linear(30, 768)
+        self.fc3 = nn.Linear(30, 768)
 
         self.classifier = nn.Sequential(
             nn.Dropout(p=0.1),
-            nn.Linear(768 * 2, 768, bias=True),
-            # nn.Linear(768 * 3, 768, bias=True),
+            # nn.Linear(768 * 2, 768, bias=True),
+            nn.Linear(768 * 3, 768, bias=True),
             nn.Tanh(),
             nn.Dropout(p=0.1),
             nn.Linear(768, 30, bias=True)
@@ -474,16 +473,16 @@ class SplitModels(nn.Module):
             input_ids.clone(), attention_mask=attention_mask).get('logits')
         logits_b = self.roberta2(
             input_ids.clone(), attention_mask=attention_mask).get('logits')
-        # logits_c = self.roberta3(
-        #     input_ids.clone(), attention_mask=attention_mask).get('logits')
+        logits_c = self.roberta3(
+            input_ids.clone(), attention_mask=attention_mask).get('logits')
 
         logits_a = self.fc1(logits_a)
         logits_b = self.fc2(logits_b)
-        # logits_c = self.fc3(logits_c)
+        logits_c = self.fc3(logits_c)
 
         concatenated_vectors = torch.cat(
-            (logits_a, logits_b), dim=-1)
-        # (logits_a, logits_b, logits_c), dim=-1)
+            (logits_a, logits_b, logits_c), dim=-1)
+        # (logits_a, logits_b), dim=-1)
 
         # NOTE: roberta-large, small, base, bert-base
         # logits_c = self.roberta3(
@@ -661,8 +660,8 @@ def train(args):
         #     args.model_name, config=model_config)
         # model = RobertaAddLSTMModel(pretrained_model_config=model_config)
 
-        # model = SplitModels()
-        model = SplitModelsTest(config=model_config)
+        model = SplitModels()
+        # model = SplitModelsTest(config=model_config)
 
         if args.entity_embedding:
             custom_embedding = RobertaEmbeddings(model, config=model_config)
@@ -777,7 +776,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--hp_config', type=str,
-                        default='hp_config/test.json')
+                        default='hp_config/cb_loss.json')
     # parser.add_argument('--hp_config', type=str,
     #                     default='hp_config/roberta_large_focal_loss.json')
     # default='hp_config/roberta_small.json')
@@ -787,10 +786,10 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default='data/train.csv')
     parser.add_argument('--aug_data_dir', type=str, default='')
     parser.add_argument('--output_dir', type=str,
-                        default='./tmp')
+                        default='./tmp/4_fold')
     parser.add_argument('--logging_dir', type=str, default='./logs')
     parser.add_argument('--save_dir', type=str,
-                        default='./tmp')
+                        default='./tmp/4_fold')
 
     parser.add_argument('--model_name', type=str, default='klue/roberta-large')
     # parser.add_argument('--model_name', type=str,
