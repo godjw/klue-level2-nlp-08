@@ -10,7 +10,7 @@ from datasets.load import load_metric
 from tqdm import tqdm
 import wandb
 
-from trainer import MyTrainer, init_tarining_arguments, training_arguments
+from trainer import MyTrainer, init_tarining_arguments
 from utils import RelationExtractionDataset, DataHelper, ConfigParser
 from model.metric import compute_metrics
 import os
@@ -36,10 +36,13 @@ def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1
 
 
 def train(args):
-    config = ConfigParser(config=args.config).config
-
-    data_config = config['data']
     evaluation_strategy = args.evaluation_strategy
+    assert (evaluation_strategy not in args.config.split('/')[1]) == False,\
+        "not matched evaluation strategy and config file"
+
+    # Config parse and init configures
+    config = ConfigParser(config=args.config).config
+    data_config = config['data']
     training_arguments_config = config['training_arguments']
     hyperparameter_config = config['training_arguments']['hyperparameter']
     model_dir = config['model_dir']
@@ -47,25 +50,30 @@ def train(args):
     wandb_config = config['wandb']
     disable_wandb = args.disable_wandb
 
-    seed_everything(hyperparameter_config['seed'])
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    tokenizer = AutoTokenizer.from_pretrained(model_dir)
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-
-    model_config = AutoConfig.from_pretrained(model_dir, num_labels=30)
-
     if disable_wandb == True:
         os.environ["WANDB_DISABLED"] = "true"
     else:
         wandb.login()
+
+    # Fix all seeds
+    seed_everything(hyperparameter_config['seed'])
+
+    # init device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # init tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
+    # init model config of transformers
+    model_config = AutoConfig.from_pretrained(model_dir, num_labels=30)
 
     val_scores = []
     helper = DataHelper(data_dir=data_config['data_dir'],
                         add_ent_token=data_config['add_ent_token'],
                         aug_data_dir=data_config['aug_data_dir'])
 
+    # train loop
     for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=data_config['split_ratio'], n_splits=data_config['n_splits'], mode=mode, random_seed=hyperparameter_config['seed'])):
         train_data, train_labels = helper.from_idxs(idxs=train_idxs)
         val_data, val_labels = helper.from_idxs(idxs=val_idxs)
@@ -145,22 +153,8 @@ if __name__ == '__main__':
                         default='config/eval_epoch_config.json')
     parser.add_argument('--evaluation_strategy', type=str,
                         default='epoch', choices=['steps', 'epoch'])
-
-    # parser.add_argument('--hyperparameter_config', type=str,
-    #                     default='hp_config/roberta_small.json')
-    # parser.add_argument('--data_dir', type=str,
-    #                     default='data/prinstine_data.csv')
-    # parser.add_argument('--aug_data_dir', type=str, default='')
-    # parser.add_argument('--output_dir', type=str, default='./results')
-    # parser.add_argument('--logging_dir', type=str, default='./logs')
-    # parser.add_argument('--save_dir', type=str, default='./results')
-    # parser.add_argument('--model_name', type=str, default='klue/roberta-small')
     parser.add_argument('--mode', type=str, default='plain',
                         choices=['plain', 'skf'])
-    # parser.add_argument('--split_ratio', type=float, default=0.1)
-    # parser.add_argument('--n_splits', type=int, default=5)
-
-    # parser.add_argument('--add_ent_token', type=bool, default=True)
     parser.add_argument('--disable_wandb', type=bool, default=True)
 
     args = parser.parse_args()

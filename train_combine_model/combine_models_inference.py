@@ -6,7 +6,6 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from custom_model import RobertaEmbeddings
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, DataCollatorWithPadding, Trainer, TrainingArguments
 from datasets.load import load_metric
 
@@ -16,7 +15,7 @@ from transformers.models.roberta.modeling_roberta import RobertaPreTrainedModel
 import wandb
 
 from utils import RelationExtractionDataset, DataHelper, ConfigParser
-from metric import compute_metrics
+from model.metric import compute_metrics
 import os
 import random
 import numpy as np
