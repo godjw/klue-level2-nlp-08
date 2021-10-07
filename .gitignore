@@ -7,6 +7,9 @@ results/
 # wandb
 wandb/
 
+# logs
+logs/
+
 # jupyter temp files
 .ipynb_checkpoints
 
