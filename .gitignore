@@ -18,9 +18,15 @@ data/
 best_model/
 results/
 prediction/
-test_entitiy_masking/
 
 tmp/
 sota_focal/
 c_t/
 compare.ipynb
+
+test_entitiy_masking/__pycache__
+test_entitiy_masking/best_model/
+test_entitiy_masking/prediction/
+test_entitiy_masking/results/
+test_entitiy_masking/wandb/
+test_entitiy_masking/kluebert-retrained
