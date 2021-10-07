@@ -16,6 +16,5 @@ wandb/
 # saved model
 best_model/
 results/
-prediction/
 
 test.ipynb
