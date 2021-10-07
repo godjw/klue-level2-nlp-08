@@ -35,28 +35,13 @@ def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1
     return metric.compute(average='micro')[eval_method]
 
 
-def train(args):
-    evaluation_strategy = args.evaluation_strategy
-    assert (evaluation_strategy not in args.config.split('/')[1]) == False,\
-        "not matched evaluation strategy and config file"
-
+def plain_train_loop(config, mode='plain', evaluation_strategy='epoch', disable_wandb=False):
     # Config parse and init configures
-    config = ConfigParser(config=args.config).config
     data_config = config['data']
     training_arguments_config = config['training_arguments']
     hyperparameter_config = config['training_arguments']['hyperparameter']
     model_dir = config['model_dir']
-    mode = args.mode
     wandb_config = config['wandb']
-    disable_wandb = args.disable_wandb
-
-    if disable_wandb == True:
-        os.environ["WANDB_DISABLED"] = "true"
-    else:
-        wandb.login()
-
-    # Fix all seeds
-    seed_everything(hyperparameter_config['seed'])
 
     # init device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -73,8 +58,7 @@ def train(args):
                         add_ent_token=data_config['add_ent_token'],
                         aug_data_dir=data_config['aug_data_dir'])
 
-    # train loop
-    for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=data_config['split_ratio'], n_splits=data_config['n_splits'], mode=mode, random_seed=hyperparameter_config['seed'])):
+    for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=data_config['split_ratio'], n_splits=data_config['n_splits'], mode=mode, random_seed=config['seed'])):
         train_data, train_labels = helper.from_idxs(idxs=train_idxs)
         val_data, val_labels = helper.from_idxs(idxs=val_idxs)
 
@@ -83,7 +67,8 @@ def train(args):
 
         train_dataset = RelationExtractionDataset(
             train_data, labels=train_labels)
-        val_dataset = RelationExtractionDataset(val_data, labels=val_labels)
+        val_dataset = RelationExtractionDataset(
+            val_data, labels=val_labels)
 
         model = AutoModelForSequenceClassification.from_pretrained(
             model_dir, config=model_config)
@@ -133,7 +118,38 @@ def train(args):
             name=wandb_config['name'],
             group=wandb_config['group']
         )
-        wandb.log({'fold_avg_eval': sum(val_scores) / data_config['n_splits']})
+        wandb.log({'fold_avg_eval': sum(
+            val_scores) / data_config['n_splits']})
+
+
+def train(args):
+    use_fixed_dataset = args.use_fixed_dataset
+    if use_fixed_dataset:
+        assert (args.config.split('/')[1].startswith('fixed_dataset') == True), \
+            "you must use fixed dataset config"
+    evaluation_strategy = args.evaluation_strategy
+    assert (evaluation_strategy not in args.config.split('/')[1]) == False, \
+        "not matched evaluation strategy and config file"
+
+    disable_wandb = args.disable_wandb
+
+    if disable_wandb == True:
+        os.environ["WANDB_DISABLED"] = "true"
+    else:
+        wandb.login()
+
+    config = ConfigParser(config=args.config).config
+    # Fix all seeds
+    seed_everything(config['seed'])
+
+    mode = args.mode
+    if use_fixed_dataset:
+        if mode == 'skf':
+            # TODO: implement train loop using fixed dataset
+            pass
+    else:
+        plain_train_loop(config, mode=mode,
+                         evaluation_strategy=evaluation_strategy, disable_wandb=disable_wandb)
 
 
 def seed_everything(seed: int = 42):
@@ -150,12 +166,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--config', type=str,
-                        default='config/eval_epoch_config.json')
+                        default='config/eval_epoch_config.json',
+                        choices=['config/eval_epoch_config.json', 'config/eval_steps_config.json',
+                                 'config/fixed_dataset_eval_epoch_config.json', 'config/fixed_dataset_eval_steps_config.json'])
     parser.add_argument('--evaluation_strategy', type=str,
                         default='epoch', choices=['steps', 'epoch'])
     parser.add_argument('--mode', type=str, default='plain',
                         choices=['plain', 'skf'])
     parser.add_argument('--disable_wandb', type=bool, default=True)
+    parser.add_argument('--use_fixed_dataset', type=bool, default=False)
 
     args = parser.parse_args()
 
