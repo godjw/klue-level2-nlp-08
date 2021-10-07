@@ -47,28 +47,20 @@ class MyTrainer(Trainer):
         labels = inputs.pop("labels")
         outputs = model(inputs['input_ids'], inputs['attention_mask'])
         ce_loss = nn.CrossEntropyLoss(reduction='none') # try giving more weight to no_relation
-
-        loss = ce_loss(outputs, labels)
+        loss = ce_loss(outputs.get('logits'), labels)
         return (loss, outputs) if return_outputs else loss.mean()
 
 def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
-    print(1)
     metric = load_metric(eval_method)
-    print(2)
     dataloader = DataLoader(
         val_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
-    print(3)
     model.eval()
-    print(4)
     for data in tqdm(dataloader):
         data = {key: value.to(device) for key, value in data.items()}
         with torch.no_grad():
-            outputs = model(**data)
-        print(5)
+            outputs = model(data['input_ids'], data['attention_mask'])
         preds = torch.argmax(outputs.logits, dim=-1)
-        print(6)
         metric.add_batch(predictions=preds, references=data['labels'])
-        print(7)
     model.train()
 
     return metric.compute(average='micro')[eval_method]
@@ -96,6 +88,14 @@ def train(args):
                         add_ent_token=args.add_ent_token,
                         aug_data_dir=args.aug_data_dir)
     for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=args.split_ratio, n_splits=args.n_splits, mode=args.mode, random_seed=hp_config['seed'])):
+        #### 여기 숫자 수정해주세요!
+        ### 준영님 2
+        ### 진성님 3
+        ### 하겸님 4
+        if k != 0:
+            continue
+        ####
+
         train_data, train_labels = helper.from_idxs(idxs=train_idxs)
         val_data, val_labels = helper.from_idxs(idxs=val_idxs)
 
@@ -110,7 +110,7 @@ def train(args):
             model = AutoModelForSequenceClassification.from_pretrained(
                 args.model_name, config=model_config)
         else:
-            model = GetModel()
+            model = GetModel(config=model_config)
 
         model.to(device)
 
@@ -118,9 +118,9 @@ def train(args):
             wandb.init(
                 project='klue',
                 entity='chungye-mountain-sherpa',
-                name=f'{args.model_name}_' +
+                name=f'{args.model_name}_large_lstm_dropout_' +
                 (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
-                group=args.model_name.split('/')[-1]
+                group='roberta-large-lstm_'
             )
 
         if args.eval_strategy == 'epoch':
@@ -195,7 +195,7 @@ def train(args):
             project='klue',
             entity='chungye-mountain-sherpa',
             name=f'{args.model_name}_{args.n_splits}_fold_avg',
-            group=args.model_name.split('/')[-1]
+            group='roberta-large-lstm'
         )
         wandb.log({'fold_avg_eval': sum(val_scores) / args.n_splits})
 
@@ -214,9 +214,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--hp_config', type=str,
-                        default='hp_config/roberta_small.json')
+                        default='hp_config/roberta_large_focal_loss.json')
 
-    parser.add_argument('--data_dir', type=str, default='data/train.csv')
+    parser.add_argument('--data_dir', type=str, default='data/cleaned_target_augmented.csv')
     parser.add_argument('--aug_data_dir', type=str, default='')
     parser.add_argument('--output_dir', type=str,
                         default='./results')
@@ -224,15 +224,15 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str,
                         default='./best_model')
 
-    parser.add_argument('--model_name', type=str, default='klue/roberta-small')
+    parser.add_argument('--model_name', type=str, default='klue/roberta-large')
     parser.add_argument('--mode', type=str, default='plain',
                         choices=['plain', 'skf'])
-    parser.add_argument('--split_ratio', type=float, default=0.1)
+    parser.add_argument('--split_ratio', type=float, default=0.2)
     parser.add_argument('--n_splits', type=int, default=5)
     parser.add_argument('--eval_strategy', type=str,
                         default='epoch', choices=['steps', 'epoch'])
     parser.add_argument('--add_ent_token', type=bool, default=True)
-    parser.add_argument('--disable_wandb', type=bool, default=True)
+    parser.add_argument('--disable_wandb', type=bool, default=False)
     parser.add_argument('--new_hat', type=bool, default=False, choices=[True,False])
 
     args = parser.parse_args()

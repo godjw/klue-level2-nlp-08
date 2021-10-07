@@ -3,6 +3,7 @@ __pycache__
 
 # Checkpoints
 results/
+best_model_lstm_roberta/
 
 # wandb
 wandb/

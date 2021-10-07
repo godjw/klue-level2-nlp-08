@@ -10,6 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from utils import *
+from GetModel import GetModel
 
 
 def infer(model, test_dataset, batch_size, collate_fn, device):
@@ -47,10 +48,16 @@ def inference(args):
 
     probs = []
     for k in range(args.n_splits if args.mode == 'skf' else 1):
+        '''
         model = AutoModelForSequenceClassification.from_pretrained(
             path.join(args.model_dir,
                       f'{k}_fold' if args.mode == 'skf' else args.mode)
         )
+        '''
+        model = GetModel.from_pretrained(path.join(args.model_dir,
+                      f'{k}_fold' if args.mode == 'skf' else args.mode)
+        )
+
         model.to(device)
 
         pred_labels, pred_probs = infer(

@@ -1,13 +1,18 @@
 from transformers import RobertaModel
 import torch.nn as nn
 import torch
+from transformers.modeling_outputs import SequenceClassifierOutput
+from transformers.models.roberta.modeling_roberta import RobertaPreTrainedModel
 
-class GetModel(nn.Module):
-      def __init__(self):
-            super(GetModel, self).__init__()
-            self.bert = RobertaModel.from_pretrained("klue/roberta-small")
+#class GetModel(nn.Module): # model save, load(in checkpoint)
+class GetModel(RobertaPreTrainedModel):
+      def __init__(self, config, *args, **kwargs):
+            # super(GetModel, self).__init__()
+            super().__init__(config=config)
+
+            self.bert = RobertaModel.from_pretrained("klue/roberta-large")
             ### New layers:
-            self.lstm = nn.LSTM(768, 256, batch_first=True, bidirectional=True)
+            self.lstm = nn.LSTM(1024, 256, batch_first=True, bidirectional=True)
             self.linear = nn.Linear(256*2, 30)
             self.dropout = nn.Dropout(0.5)
             self.tanh = nn.Tanh()
@@ -21,5 +26,7 @@ class GetModel(nn.Module):
             hidden = torch.cat((lstm_output[:,-1, :256],lstm_output[:,0, 256:]),dim=-1)
             linear_output = self.linear(hidden.view(-1,256*2)) ### assuming that you are only using the output of the last LSTM cell to perform classification
             x = self.tanh(linear_output)
+            x = self.dropout(x)
+            outputs = SequenceClassifierOutput(logits=x)
 
-            return x
+            return outputs
