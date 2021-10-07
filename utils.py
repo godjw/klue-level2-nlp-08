@@ -1,4 +1,5 @@
 import ast
+from collections import Counter
 import pickle
 import os
 import random
@@ -19,6 +20,7 @@ class RelationExtractionDataset(Dataset):
     def __init__(self, data, labels=None):
         self.data = data
         self.labels = labels
+        self.label_counter = Counter(self.labels)
 
     def __getitem__(self, idx):
         item = {key: value[idx] for key, value in self.data.items()}
@@ -28,6 +30,9 @@ class RelationExtractionDataset(Dataset):
 
     def __len__(self):
         return len(self.data['input_ids'])
+
+    def get_n_per_labels(self):
+        return [self.label_counter[i] for i in range(30)]
 
 
 class DataHelper:
