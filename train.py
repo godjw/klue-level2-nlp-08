@@ -109,7 +109,7 @@ def train(args):
 
         if args.disable_wandb == False:
             wandb.init(
-                project='klue',
+                project='jinwon',
                 entity='chungye-mountain-sherpa',
                 name=f'{args.model_name}_' +
                 (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),
@@ -131,6 +131,8 @@ def train(args):
                 evaluation_strategy=args.eval_strategy,
                 save_strategy=args.eval_strategy,
                 load_best_model_at_end=True,
+                fp16=True,
+                fp16_opt_level='O1',
                 metric_for_best_model='micro f1 score'
             )
         elif args.eval_strategy == 'steps':
@@ -204,14 +206,14 @@ if __name__ == '__main__':
     parser.add_argument('--hp_config', type=str,
                         default='hp_config/roberta_small.json')
 
-    parser.add_argument('--data_dir', type=str, default='data/train.csv')
+    parser.add_argument('--data_dir', type=str, default='data/ja_concat.csv')
     parser.add_argument('--output_dir', type=str,
                         default='./results')
     parser.add_argument('--logging_dir', type=str, default='./logs')
     parser.add_argument('--save_dir', type=str,
                         default='./best_model')
 
-    parser.add_argument('--model_name', type=str, default='klue/roberta-small')
+    parser.add_argument('--model_name', type=str, default='klue/roberta-large')
     parser.add_argument('--mode', type=str, default='plain',
                         choices=['plain', 'skf'])
     parser.add_argument('--split_ratio', type=float, default=0.1)
