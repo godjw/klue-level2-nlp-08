@@ -1,8 +1,8 @@
 {
-    "batch_size": 4,
-    "gradient_accumulation_steps": 32,
-    "learning_rate": 8.643223664444307e-05,
+    "batch_size": 32,
+    "gradient_accumulation_steps": 4,
+    "learning_rate": 3.643223664444307e-05,
     "weight_decay": 0.029856983237295187,
-    "epochs": 3,
+    "epochs": 15,
     "seed": 30
 }

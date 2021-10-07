@@ -18,41 +18,7 @@ import os
 import random
 import numpy as np
 
-
-class WeightedFocalLoss(nn.Module):
-    "Non weighted version of Focal Loss"
-
-    def __init__(self, alpha=.25, gamma=2):
-        super(WeightedFocalLoss, self).__init__()
-        self.alpha = torch.tensor([alpha, 1 - alpha]).cuda()
-        self.gamma = gamma
-
-    def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(
-            inputs, targets, reduction='none')
-        targets = targets.type(torch.long)
-        at = self.alpha.gather(0, targets.data.view(-1))
-        pt = torch.exp(-BCE_loss)
-        F_loss = at * (1 - pt)**self.gamma * BCE_loss
-        return F_loss.mean()
-
-
-class MyTrainer(Trainer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        if self.label_smoother is not None and "labels" in inputs:
-            labels = inputs.pop("labels")
-        else:
-            labels = None
-        loss_fct = WeightedFocalLoss()
-        outputs = model(**inputs)
-        if labels is not None:
-            loss = loss_fct(outputs[0], labels)
-        else:
-            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-        return (loss, outputs) if return_outputs else loss
+from mytrainer import MyTrainer
 
 
 def evaluate(model, val_dataset, batch_size, collate_fn, device, eval_method='f1'):
@@ -110,7 +76,8 @@ def train(args):
 
         if args.disable_wandb == False:
             wandb.init(
-                project='klue',
+                # project='klue',
+                project='imbalance',
                 entity='chungye-mountain-sherpa',
                 name=f'{args.model_name}_' +
                 (f'fold_{k}' if args.mode == 'skf' else f'{args.mode}'),

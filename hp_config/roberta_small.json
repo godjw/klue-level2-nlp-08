@@ -3,6 +3,6 @@
     "gradient_accumulation_steps": 4,
     "learning_rate": 8.199699530158672e-05,
     "weight_decay": 0.29149513464397286,
-    "epochs": 3,
+    "epochs": 5,
     "seed": 2
 }
