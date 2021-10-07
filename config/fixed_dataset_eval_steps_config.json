@@ -4,7 +4,7 @@
     "data": {
         "train_data_dir": "data/train.csv",
         "valid_data_dir": "data/valid.csv",
-        "aug_data_dir": "",
+        "add_data_dir": "",
         "n_splits": 5,
         "add_ent_token": true
     },

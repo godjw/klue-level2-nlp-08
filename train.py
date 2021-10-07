@@ -57,7 +57,7 @@ def train_loop_using_fixed_dataset(config, mode='plain', evaluation_strategy='ep
     helper = FixedDataHelper(train_data_dir=data_config['train_data_dir'],
                              valid_data_dir=data_config['valid_data_dir'],
                              add_ent_token=data_config['add_ent_token'],
-                             aug_data_dir=data_config['aug_data_dir'])
+                             add_data_dir=data_config['add_data_dir'])
 
     # TODO: kfold fixed dataset
     train_data, train_labels = helper.train_data, helper.train_labels
@@ -134,7 +134,7 @@ def train_loop(config, mode='plain', evaluation_strategy='epoch', disable_wandb=
     val_scores = []
     helper = DataHelper(data_dir=data_config['data_dir'],
                         add_ent_token=data_config['add_ent_token'],
-                        aug_data_dir=data_config['aug_data_dir'])
+                        add_data_dir=data_config['add_data_dir'])
 
     for k, (train_idxs, val_idxs) in enumerate(helper.split(ratio=data_config['split_ratio'], n_splits=data_config['n_splits'], mode=mode, random_seed=config['seed'])):
         train_data, train_labels = helper.from_idxs(idxs=train_idxs)

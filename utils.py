@@ -43,10 +43,10 @@ class DataHelper:
     A helper class for data loading and processing
     """
 
-    def __init__(self, data_dir, mode='train', add_ent_token=False, aug_data_dir=''):
+    def __init__(self, data_dir, mode='train', add_ent_token=False, add_data_dir=''):
         self._data = pd.read_csv(data_dir)
-        if aug_data_dir:
-            self._aug_data = pd.read_csv(aug_data_dir)
+        if add_data_dir:
+            self._aug_data = pd.read_csv(add_data_dir)
             self._data = pd.concat([self._data, self._aug_data])
         self._mode = mode
         self.add_ent_token = add_ent_token
@@ -141,12 +141,12 @@ class DataHelper:
 
 
 class FixedDataHelper(DataHelper):
-    def __init__(self, train_data_dir, valid_data_dir, mode='train', add_ent_token=False, aug_data_dir=''):
+    def __init__(self, train_data_dir, valid_data_dir, mode='train', add_ent_token=False, add_data_dir=''):
         _train_data = pd.read_csv(train_data_dir)
         _valid_data = pd.read_csv(valid_data_dir)
 
-        if aug_data_dir:
-            _aug_data = pd.read_csv(aug_data_dir)
+        if add_data_dir:
+            _aug_data = pd.read_csv(add_data_dir)
             _train_data = pd.concat([_train_data, _aug_data])
 
         self._mode = mode
