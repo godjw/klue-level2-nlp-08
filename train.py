@@ -191,10 +191,10 @@ def train_loop(config, mode='plain', evaluation_strategy='epoch', disable_wandb=
 
     if mode == 'skf' and disable_wandb == False:
         wandb.init(
-            project=wandb_config['project'],
-            entity=wandb_config['entity'],
-            name=wandb_config['name'],
-            group=wandb_config['group']
+            project='klue',
+            entity='chungye-mountain-sherpa',
+            name=f'{args.model_name}_{args.n_splits}_fold_avg',
+            group=args.model_name.split('/')[-1]
         )
         wandb.log({'fold_avg_eval': sum(
             val_scores) / data_config['n_splits']})
