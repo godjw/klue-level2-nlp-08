@@ -40,5 +40,5 @@ Using `stratified_sentence_split.ipynb` will produce a k-fold stratified data th
 
 
 # Reference
-Karimi, Akbar, Leonardo Rossi, and Andrea Prati. "AEDA: An Easier Data Augmentation Technique for Text Classification." arXiv preprint arXiv:2108.13230 (2021).
+Karimi, Akbar, Leonardo Rossi, and Andrea Prati. "AEDA: An Easier Data Augmentation Technique for Text Classification." arXiv preprint arXiv:2108.13230 (2021). <br>
 Wei, Jason, and Kai Zou. "Eda: Easy data augmentation techniques for boosting performance on text classification tasks." arXiv preprint arXiv:1901.11196 (2019).
