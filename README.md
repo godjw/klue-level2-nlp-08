@@ -3,7 +3,20 @@ Code for 5th place in Boostcamp Klue RE comepetition. 3rd place by official best
 
 For detailed documentation visit [here](https://docs.google.com/document/d/1cTlZ_MsTGlkTU0ZAuWmexvIkz2vbvZrViruU64MQ3fs/edit?usp=sharing)
 
+## Hardware
+- NVIDIA TELSA V100
+- Ubuntu 18.04
+
+## Reproduction of the Best Model
+You can reproduce the submission by retraining through the following steps
+- [Installation](#Installation)
+- [Preprocessing](#Preprocessing)
+- [Training](#Training)
+- [Inference](#Inference)
+
 ## Background Info
+### Installation
+
 ### Data Source
 In this competition, we used KLUE dataset for relation extraction, which can be downloaded from the link below:
 https://aistages-prod-server-public.s3.amazonaws.com/app/Competitions/000075/data/dataset.tar.gz
