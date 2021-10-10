@@ -1,4 +1,7 @@
 # Boostcamp KLUE Relation Extraction Competition
+Code for 5th place in Boostcamp Klue RE comepetition. 3rd place by official best model.
+
+For detailed documentation visit [here](https://docs.google.com/document/d/1cTlZ_MsTGlkTU0ZAuWmexvIkz2vbvZrViruU64MQ3fs/edit?usp=sharing)
 
 ## Background Info
 ### Data Source
