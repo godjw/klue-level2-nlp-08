@@ -128,17 +128,10 @@ def train(args):
 
     if mode == 'skf' and disable_wandb == False:
         wandb.init(
-<<<<<<< HEAD
-            project='klue',
-            entity='chungye-mountain-sherpa',
-            name=f'{args.model_name}_{args.n_splits}_fold_avg',
-            group=args.model_name.split('/')[-1]
-=======
             project=wandb_config['project'],
             entity=wandb_config['entity'],
             name=wandb_config['name'],
             group=wandb_config['group']
->>>>>>> ac30fc29eb17c05a6ebe82359a1e1aaef343e842
         )
         wandb.log({'fold_avg_eval': sum(val_scores) / data_config['n_splits']})
 
@@ -167,5 +160,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train(args=args)
-
-#
