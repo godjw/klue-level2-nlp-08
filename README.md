@@ -17,11 +17,11 @@ You can reproduce the submission by retraining through the following steps:
 ## Background Info
 ### Installation
 
-`
+```
 conda create -n klue_re python=3.6
 conda activate klue_re
 pip install -r requirements.txt
-`
+```
 
 
 ### Data Source
