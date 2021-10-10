@@ -8,7 +8,7 @@ For detailed documentation visit [here](https://docs.google.com/document/d/1cTlZ
 - Ubuntu 18.04
 
 ## Reproduction of the Best Model
-You can reproduce the submission by retraining through the following steps
+You can reproduce the submission by retraining through the following steps:
 - [Installation](#Installation)
 - [Preprocessing](#Preprocessing)
 - [Training](#Training)
@@ -16,6 +16,13 @@ You can reproduce the submission by retraining through the following steps
 
 ## Background Info
 ### Installation
+
+`
+conda create -n klue_re python=3.6
+conda activate klue_re
+pip install -r requirements.txt
+`
+
 
 ### Data Source
 In this competition, we used KLUE dataset for relation extraction, which can be downloaded from the link below:
