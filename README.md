@@ -1,5 +1,17 @@
 # HOW TO USE
 
+## Data Source
+In this competition, we used KLUE dataset for relation extraction, which can be downloaded from the link below:
+https://aistages-prod-server-public.s3.amazonaws.com/app/Competitions/000075/data/dataset.tar.gz
+
+## EDA
+EDA can be seen from eda.ipynb file under data_eda_preprocessing folder
+
+## Preprocessing
+Multiple 
+
+
+
 ## Training
 ### default
 `python train.py`
