@@ -21,3 +21,5 @@ best_model/
 results/
 
 test.ipynb
+
+/.DS_Store
