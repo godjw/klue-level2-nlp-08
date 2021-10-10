@@ -40,6 +40,14 @@ Multiple augmentation techniques were applied but only few has proven valid. Tar
 
 Using `stratified_sentence_split.ipynb` will produce a k-fold stratified data that does not have same sentences between train and validation set, but this technique has proven to not have much improvement.
 
+The resulting directory should be structured as:
+```
+data
+  +- test.csv
+  +- train.csv
+  +- cleansed_target_augmented.csv
+```
+
 ## HOW TO USE
 
 ### Training
