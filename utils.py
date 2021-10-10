@@ -190,7 +190,7 @@ class DataHelper:
 
     def tokenize_with_entity_mask(self, entity_data, tokenizer):
         """
-        input format : <e1> 이순신 </e1> 은 <e2> 조선 </e2> 중기의 무신이다.
+        input sentence format : <e1> 이순신 </e1> 은 <e2> 조선 </e2> 중기의 무신이다.
         """
         tokenizer.add_special_tokens(
             {"additional_special_tokens": ["<e1>", "</e1>", "<e2>", "</e2>"]}
