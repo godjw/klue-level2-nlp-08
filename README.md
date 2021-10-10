@@ -43,9 +43,9 @@ Using `stratified_sentence_split.ipynb` will produce a k-fold stratified data th
 The resulting directory should be structured as:
 ```
 data
-  +- test.csv
-  +- train.csv
-  +- cleansed_target_augmented.csv
+  - test.csv
+  - train.csv
+  - cleansed_target_augmented.csv
 ```
 
 ## HOW TO USE
