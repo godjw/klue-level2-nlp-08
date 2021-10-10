@@ -2,9 +2,9 @@
     "seed": 42,
     "model_dir": "klue/roberta-small",
     "data": {
-        "data_dir": "data/train.csv",
+        "train_data_dir": "data/train.csv",
+        "valid_data_dir": "data/valid.csv",
         "add_data_dir": "",
-        "split_ratio": 0.1,
         "n_splits": 5,
         "add_ent_token": true
     },
@@ -21,9 +21,8 @@
         "logging_dir": "logs/",
         "logging_step": 200,
         "save_total_limit": 2,
-        "evaluation_strategy": "steps",
-        "eval_steps": 200,
-        "save_steps": 200,
+        "evaluation_strategy": "epoch",
+        "save_strategy": "epoch",
         "load_best_model_at_end": true,
         "metric_for_best_model": "micro f1 score",
         "fp16": true,

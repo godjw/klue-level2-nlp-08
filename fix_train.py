@@ -13,7 +13,7 @@ from tqdm import tqdm
 import wandb
 
 from utils import RelationExtractionDataset, DataHelper, ConfigParser
-from metric import compute_metrics
+from model.metric import compute_metrics
 import os
 import random
 import numpy as np

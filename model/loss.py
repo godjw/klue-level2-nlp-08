@@ -71,3 +71,45 @@ class CB_loss(nn.Module):
             cb_loss = F.binary_cross_entropy(
                 input=pred, target=labels_one_hot, weight=weights)
         return cb_loss
+
+
+class FocalLoss(nn.Module):
+    def __init__(self, weight=None, gamma=0.):
+        super().__init__()
+        assert gamma >= 0
+        self.gamma = gamma
+        self.weight = weight
+
+    def forward(self, input, target):
+        return self._focal_loss(F.cross_entropy(input, target, reduction='none', weight=self.weight), self.gamma)
+
+    def _focal_loss(input_values, gamma):
+        """
+        Computes the focal loss
+        """
+        p = torch.exp(-input_values)
+        loss = (1 - p) ** gamma * input_values
+        return loss.mean()
+
+class LDAMLoss(nn.Module):
+    def __init__(self, cls_num_list, max_m=0.5, weight=None, s=30):
+        super().__init__()
+        m_list = 1.0 / np.sqrt(np.sqrt(cls_num_list))
+        m_list = m_list * (max_m / np.max(m_list))
+        m_list = torch.cuda.FloatTensor(m_list)
+        self.m_list = m_list
+        assert s > 0
+        self.s = s
+        self.weight = weight
+
+    def forward(self, x, target):
+        index = torch.zeros_like(x, dtype=torch.bool)
+        index.scatter_(1, target.data.view(-1, 1), 1)
+
+        index_float = index.type(torch.cuda.FloatTensor)
+        batch_m = torch.matmul(self.m_list[None, :], index_float.transpose(0, 1))
+        batch_m = batch_m.view((-1, 1))
+        x_m = x - batch_m
+
+        output = torch.where(index, x_m, x)
+        return F.cross_entropy(self.s * output.to('cuda'), target.to('cuda'), weight=self.weight.to('cuda'))

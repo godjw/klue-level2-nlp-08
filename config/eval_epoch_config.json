@@ -1,8 +1,9 @@
 {
+    "seed": 42,
     "model_dir": "klue/roberta-small",
     "data": {
         "data_dir": "data/train.csv",
-        "aug_data_dir": "",
+        "add_data_dir": "",
         "split_ratio": 0.1,
         "n_splits": 5,
         "add_ent_token": true
@@ -13,10 +14,10 @@
             "gradient_accumulation_steps": 4,
             "learning_rate": 5e-5,
             "weight_decay": 0.3,
-            "epochs": 10,
-            "seed": 42
+            "epochs": 10
         },
         "output_dir": "results/",
+        "save_dir": "best_model/",
         "logging_dir": "logs/",
         "logging_step": 200,
         "save_total_limit": 2,
