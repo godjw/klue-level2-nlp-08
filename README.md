@@ -32,11 +32,11 @@ https://aistages-prod-server-public.s3.amazonaws.com/app/Competitions/000075/dat
 EDA can be seen from eda.ipynb file under data_eda_preprocessing folder
 
 ### Preprocessing
-Multiple augmentation techniques were applied but only few has proven valid. Targeting and augmenting the data that the 5-fold model was at least wrong once was effective. All other experiments were futile, although the experiments included techniques commonly accepted effective. Such techniques include back-translation, changing word seuqence, adding punctuation, replacing words with synonyms, and adding new words (Karimi et al.; wei et al.).
-
 To get the final data we used, run
 `cleanser.ipnyb` to get a cleansed data `pristine.csv`, and use the file to run
 `target_augment.ipynb` to get a selectively augmented data, which is `cleansed_target_augmented.csv`.
+
+Multiple augmentation techniques were applied but only few has proven valid. Targeting and augmenting the data that the 5-fold model was at least wrong once was effective. All other experiments were futile, although the experiments included techniques commonly accepted effective. Such techniques include back-translation, changing word seuqence, adding punctuation, replacing words with synonyms, and adding new words (Karimi et al.; wei et al.).
 
 Using `stratified_sentence_split.ipynb` will produce a k-fold stratified data that does not have same sentences between train and validation set, but this technique has proven to not have much improvement.
 
