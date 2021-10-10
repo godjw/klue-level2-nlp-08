@@ -163,7 +163,7 @@ class FCLayer(nn.Module):
 
 class RBERT(RobertaPreTrainedModel):
     '''
-    https://github.com/monologg/R-BERT
+    orgin code: https://github.com/monologg/R-BERT
     edit by 문하겸_T2076
     '''
 
